@@ -14,31 +14,101 @@ export function SubscriptionCard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = async (isRetry = false) => {
     setLoading(true);
     try {
+      console.log('[SubscriptionCard] Opening customer portal...', { isRetry });
+      
       const { data, error } = await supabase.functions.invoke('customer-portal');
       
-      if (error) throw error;
+      if (error) {
+        console.error('[SubscriptionCard] Portal invocation error:', error);
+        throw error;
+      }
+      
+      if (data?.error) {
+        console.error('[SubscriptionCard] Portal error response:', data);
+        
+        // Handle specific error cases
+        if (data.error === 'no_customer') {
+          toast({
+            variant: "destructive",
+            title: "No Billing Account",
+            description: "Please complete checkout first to manage your subscription.",
+            action: (
+              <Button variant="outline" size="sm" onClick={() => navigate('/subscription')}>
+                Go to Checkout
+              </Button>
+            ),
+          });
+          return;
+        }
+        
+        if (data.error === 'portal_not_configured') {
+          toast({
+            variant: "destructive",
+            title: "Portal Not Available",
+            description: "The billing portal is being set up. Please contact support for assistance.",
+            action: (
+              <Button variant="outline" size="sm" onClick={() => window.open('mailto:support@example.com', '_blank')}>
+                Contact Support
+              </Button>
+            ),
+          });
+          return;
+        }
+        
+        throw new Error(data.message || 'Failed to open portal');
+      }
       
       if (data?.url) {
-        window.open(data.url, '_blank');
+        console.log('[SubscriptionCard] Opening portal URL:', data.url);
+        
+        // Try to open in new tab
+        const newWindow = window.open(data.url, '_blank', 'noopener,noreferrer');
+        
+        // Handle popup blockers
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          console.warn('[SubscriptionCard] Popup blocked, opening in same tab');
+          toast({
+            title: "Opening Billing Portal",
+            description: "If the portal doesn't open, please allow popups for this site.",
+          });
+          // Fallback: open in same tab
+          window.location.href = data.url;
+          return;
+        }
+        
         toast({
-          title: "Opening Stripe Portal",
-          description: "Manage your subscription in the new tab",
+          title: "Portal Opened",
+          description: "Manage your subscription in the new window.",
         });
         
         // Refresh subscription status after a delay
-        setTimeout(() => {
-          checkSubscription();
-        }, 3000);
+        setTimeout(async () => {
+          await checkSubscription();
+        }, 2000);
       }
-    } catch (error) {
-      console.error("Error opening customer portal:", error);
+    } catch (error: any) {
+      console.error('[SubscriptionCard] Error opening customer portal:', error);
+      
+      const isNetworkError = error?.message?.includes('fetch') || error?.message?.includes('network');
+      
       toast({
-        title: "Error",
-        description: "Failed to open subscription management portal",
         variant: "destructive",
+        title: "Portal Access Error",
+        description: isNetworkError 
+          ? "Network error. Please check your connection and try again."
+          : "We couldn't open your billing portal. Please try again.",
+        action: !isRetry ? (
+          <Button variant="outline" size="sm" onClick={() => handleManageSubscription(true)}>
+            Retry
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => window.open('mailto:support@example.com', '_blank')}>
+            Contact Support
+          </Button>
+        ),
       });
     } finally {
       setLoading(false);
@@ -105,7 +175,7 @@ export function SubscriptionCard() {
         <div className="flex gap-2">
           {subscriptionDetails?.subscribed ? (
             <Button 
-              onClick={handleManageSubscription}
+              onClick={() => handleManageSubscription()}
               disabled={loading}
               className="gap-2"
             >

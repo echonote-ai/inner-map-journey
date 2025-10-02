@@ -35,53 +35,87 @@ serve(async (req) => {
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     
-    // Decode JWT locally
-    const decodeJwt = (t: string) => {
-      const base64Url = t.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, "=");
-      const jsonPayload = atob(padded);
-      return JSON.parse(jsonPayload);
-    };
-
-    let email: string | null = null;
-
-    try {
-      const payload = decodeJwt(token);
-      email = payload?.email ?? null;
-    } catch (_) {
-      throw new Error("Could not decode user email from token");
+    if (userError) {
+      logStep("Authentication error", { error: userError.message });
+      throw new Error(`Authentication failed: ${userError.message}`);
     }
-
-    if (!email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { email });
+    
+    const user = userData.user;
+    if (!user?.email) {
+      logStep("No user or email found");
+      throw new Error("User not authenticated or email not available");
+    }
+    
+    logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: email, limit: 1 });
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+      logStep("No Stripe customer found");
+      return new Response(JSON.stringify({ 
+        error: "no_customer",
+        message: "No billing account found. Please complete checkout first.",
+        action: "redirect_checkout"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404,
+      });
     }
     
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "https://b1e46dd2-f4df-448b-9f22-a6be4b2c7447.lovableproject.com";
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${origin}/dashboard`,
-    });
-    logStep("Customer portal session created", { sessionId: portalSession.id });
+    
+    try {
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${origin}/dashboard`,
+      });
+      logStep("Customer portal session created", { sessionId: portalSession.id });
+      logStep("portal_session_success");
 
-    return new Response(JSON.stringify({ url: portalSession.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-  } catch (error) {
+      return new Response(JSON.stringify({ url: portalSession.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (stripeError: any) {
+      logStep("Stripe portal creation failed", { 
+        code: stripeError.code, 
+        message: stripeError.message,
+        type: stripeError.type 
+      });
+      logStep("portal_session_failure", { error_code: stripeError.code });
+      
+      // Handle specific Stripe errors
+      if (stripeError.code === 'account_invalid' || stripeError.message?.includes('configuration')) {
+        return new Response(JSON.stringify({ 
+          error: "portal_not_configured",
+          message: "Billing portal is not set up. Please contact support.",
+          action: "contact_support",
+          stripeError: stripeError.message
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 503,
+        });
+      }
+      
+      throw stripeError;
+    }
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in customer-portal", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const errorCode = error?.code || 'unknown';
+    logStep("ERROR in customer-portal", { message: errorMessage, code: errorCode });
+    logStep("portal_session_failure", { error_code: errorCode });
+    
+    return new Response(JSON.stringify({ 
+      error: errorCode,
+      message: errorMessage,
+      action: "retry"
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
