@@ -13,6 +13,7 @@ import JournalChoice from "./pages/JournalChoice";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
 import LifeStage from "./pages/LifeStage";
+import Goodbye from "./pages/Goodbye";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/life-stage" element={<LifeStage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/goodbye" element={<Goodbye />} />
             <Route path="/choice" element={<JournalChoice />} />
             <Route path="/reflect" element={<Reflect />} />
             <Route path="/summary" element={<Summary />} />
