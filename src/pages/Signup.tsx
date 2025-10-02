@@ -97,6 +97,7 @@ export default function Signup() {
         .update({ 
           preferred_nickname: preferredNickname.trim(),
           username: username.trim(),
+          email: email.trim(),
           gender,
           life_stage: lifeStage || null
         })

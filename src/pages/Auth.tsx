@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const authSchema = z.object({
-  email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }),
+  emailOrUsername: z.string().trim().min(1, { message: "Email or username is required" }).max(255, { message: "Input must be less than 255 characters" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password must be less than 100 characters" })
 });
 
@@ -73,7 +73,7 @@ export default function Auth() {
     e.preventDefault();
     
     // Validate input
-    const validation = authSchema.safeParse({ email, password });
+    const validation = authSchema.safeParse({ emailOrUsername: email, password });
     if (!validation.success) {
       toast({
         title: "Validation Error",
@@ -158,11 +158,11 @@ export default function Auth() {
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="signin-email">Email</Label>
+              <Label htmlFor="signin-email">Email or Username</Label>
               <Input
                 id="signin-email"
-                type="email"
-                placeholder="you@example.com"
+                type="text"
+                placeholder="you@example.com or username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
