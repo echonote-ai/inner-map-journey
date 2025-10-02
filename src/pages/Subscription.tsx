@@ -47,9 +47,10 @@ const Subscription = () => {
         "Export your journals",
         "Priority support"
       ],
-      cta: "Start Exploring",
+      cta: "Start 7-Day Free Trial",
       highlighted: true,
       priceId: "price_1SDds0Jaf5VF0aw32AdFJvNb",
+      hasTrial: true,
     },
     {
       name: "Soul Cartographer",
@@ -69,6 +70,7 @@ const Subscription = () => {
       highlighted: false,
       priceId: null,
       comingSoon: true,
+      hasTrial: true,
     },
   ];
 
@@ -180,10 +182,26 @@ const Subscription = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold">{tier.price}</span>
-                      <span className="text-muted-foreground text-sm">/{tier.period}</span>
-                    </div>
+                    {tier.hasTrial ? (
+                      <>
+                        <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm font-semibold inline-block mb-2">
+                          🎉 7-Day Free Trial
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-muted-foreground line-through">{tier.price}</span>
+                          <span className="text-4xl font-bold">$0</span>
+                          <span className="text-muted-foreground text-sm">for 7 days</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Then {tier.price}/{tier.period}
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold">{tier.price}</span>
+                        <span className="text-muted-foreground text-sm">/{tier.period}</span>
+                      </div>
+                    )}
                   </div>
 
                   <ul className="space-y-3">
