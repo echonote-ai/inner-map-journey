@@ -7,6 +7,11 @@ import { MessageCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { z } from "zod";
+
+const reflectionInputSchema = z.object({
+  content: z.string().trim().min(1, { message: "Message cannot be empty" }).max(5000, { message: "Message must be less than 5000 characters" })
+});
 
 const Reflect = () => {
   const [searchParams] = useSearchParams();
@@ -61,7 +66,18 @@ const Reflect = () => {
   const handleSendMessage = async () => {
     if (!input.trim() || !reflectionId) return;
 
-    const userMessage = { role: "user", content: input };
+    // Validate input
+    const validation = reflectionInputSchema.safeParse({ content: input });
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const userMessage = { role: "user", content: input.trim() };
     const allMessages = [...messages, userMessage];
     setMessages(allMessages);
     setInput("");
@@ -71,16 +87,23 @@ const Reflect = () => {
     await supabase.from("reflection_messages").insert({
       reflection_id: reflectionId,
       role: "user",
-      content: input,
+      content: input.trim(),
     });
 
     try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("No active session");
+      }
+
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reflection-chat`;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ 
           messages: allMessages,

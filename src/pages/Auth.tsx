@@ -7,6 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().trim().email({ message: "Invalid email address" }).max(255, { message: "Email must be less than 255 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password must be less than 100 characters" })
+});
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -24,9 +30,21 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate input
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email.trim(), password);
 
     if (error) {
       toast({
@@ -46,9 +64,21 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate input
+    const validation = authSchema.safeParse({ email, password });
+    if (!validation.success) {
+      toast({
+        title: "Validation Error",
+        description: validation.error.issues[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email.trim(), password);
 
     if (error) {
       toast({
