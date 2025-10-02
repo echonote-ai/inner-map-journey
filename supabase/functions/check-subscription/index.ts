@@ -21,7 +21,7 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } }
-  );
+  ); // kept for potential future use, not required for auth here
 
   try {
     logStep("Function started");
@@ -58,10 +58,7 @@ serve(async (req) => {
     }
 
     if (!email) {
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      if (userError) throw new Error(`Authentication error: ${userError.message}`);
-      email = userData.user?.email ?? null;
-      userId = userData.user?.id ?? null;
+      throw new Error("Could not decode user email from token");
     }
 
     if (!email) throw new Error("User not authenticated or email not available");
