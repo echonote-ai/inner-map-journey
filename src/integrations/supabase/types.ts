@@ -70,6 +70,7 @@ export type Database = {
           created_at: string | null
           id: string
           reflection_type: string
+          saved: boolean | null
           summary: string | null
           user_id: string
         }
@@ -78,6 +79,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           reflection_type: string
+          saved?: boolean | null
           summary?: string | null
           user_id: string
         }
@@ -86,6 +88,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           reflection_type?: string
+          saved?: boolean | null
           summary?: string | null
           user_id?: string
         }

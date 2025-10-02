@@ -2,3 +2,9 @@ project_id = "lzvycoujohuznnqplekx"
 
 [functions.reflection-chat]
 verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
