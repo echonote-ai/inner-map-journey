@@ -21,18 +21,33 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [reflections, setReflections] = useState<Reflection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
-    checkSubscription();
+    const checkSub = async () => {
+      console.log('[Dashboard] Checking subscription...');
+      await checkSubscription();
+      setCheckingSubscription(false);
+      console.log('[Dashboard] Subscription check complete, subscribed:', subscribed);
+    };
+    checkSub();
   }, []);
 
   useEffect(() => {
+    console.log('[Dashboard] State update - user:', !!user, 'subscribed:', subscribed, 'checking:', checkingSubscription);
+    
     if (!user) {
       navigate("/auth");
       return;
     }
 
-    if (subscribed === false) {
+    // Don't check subscription status until we've done the initial check
+    if (checkingSubscription) {
+      return;
+    }
+
+    if (!subscribed) {
+      console.log('[Dashboard] Not subscribed, redirecting to subscription page');
       toast({
         title: "Subscription Required",
         description: "Please subscribe to access your saved journals.",
@@ -42,10 +57,9 @@ const Dashboard = () => {
       return;
     }
 
-    if (subscribed === true) {
-      fetchReflections();
-    }
-  }, [user, subscribed, navigate]);
+    console.log('[Dashboard] Subscribed! Fetching reflections...');
+    fetchReflections();
+  }, [user, subscribed, checkingSubscription, navigate]);
 
   const fetchReflections = async () => {
     try {
@@ -79,7 +93,7 @@ const Dashboard = () => {
     });
   };
 
-  if (loading || subscribed === null) {
+  if (loading || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
