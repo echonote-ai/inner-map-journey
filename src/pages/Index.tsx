@@ -19,7 +19,7 @@ const Index = () => {
           <nav className="flex items-center gap-6">
             <Button
               variant="ghost"
-              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/about')}
             >
               About
             </Button>

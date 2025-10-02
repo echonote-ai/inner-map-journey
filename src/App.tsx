@@ -18,6 +18,7 @@ import Goodbye from "./pages/Goodbye";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Billing from "./pages/Billing";
+import About from "./pages/About";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/about" element={<About />} />
             <Route path="/life-stage" element={<LifeStage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/signup" element={<Signup />} />
