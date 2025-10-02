@@ -90,16 +90,27 @@ serve(async (req) => {
     
     const hasActiveSub = !!activeOrTrialingSub;
     let subscriptionEnd = null;
+    let subscriptionStatus = null;
+    let planName = "Free Spirit";
 
     if (hasActiveSub && activeOrTrialingSub) {
       const endUnix = (activeOrTrialingSub as any).current_period_end;
       if (typeof endUnix === "number" && !Number.isNaN(endUnix)) {
         subscriptionEnd = new Date(endUnix * 1000).toISOString();
       }
+      subscriptionStatus = activeOrTrialingSub.status;
+      
+      // Determine plan name from price ID
+      const priceId = activeOrTrialingSub.items.data[0]?.price.id;
+      if (priceId === "price_1SDds0Jaf5VF0aw32AdFJvNb") {
+        planName = "Inner Explorer";
+      }
+      
       logStep("Active/Trialing subscription found", {
         subscriptionId: activeOrTrialingSub.id,
         status: activeOrTrialingSub.status,
         endDate: subscriptionEnd,
+        planName,
       });
     } else {
       logStep("No active or trialing subscription found");
@@ -107,7 +118,9 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
-      subscription_end: subscriptionEnd
+      subscription_end: subscriptionEnd,
+      subscription_status: subscriptionStatus,
+      plan_name: planName,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

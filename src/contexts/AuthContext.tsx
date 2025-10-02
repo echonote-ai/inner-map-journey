@@ -3,6 +3,13 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+interface SubscriptionDetails {
+  subscribed: boolean;
+  subscription_end: string | null;
+  subscription_status: string | null;
+  plan_name: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -10,6 +17,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   subscribed: boolean;
+  subscriptionDetails: SubscriptionDetails | null;
   checkSubscription: () => Promise<void>;
 }
 
@@ -19,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [subscribed, setSubscribed] = useState(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -28,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (!currentSession) {
         setSubscribed(false);
+        setSubscriptionDetails(null);
         return;
       }
 
@@ -40,14 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('Error checking subscription:', error);
         setSubscribed(false);
+        setSubscriptionDetails(null);
         return;
       }
 
       console.log('Subscription check result:', data);
       setSubscribed(data?.subscribed || false);
+      setSubscriptionDetails(data || null);
     } catch (error) {
       console.error('Error checking subscription:', error);
       setSubscribed(false);
+      setSubscriptionDetails(null);
     }
   };
 
@@ -168,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, subscribed, checkSubscription }}>
+    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, subscribed, subscriptionDetails, checkSubscription }}>
       {children}
     </AuthContext.Provider>
   );
