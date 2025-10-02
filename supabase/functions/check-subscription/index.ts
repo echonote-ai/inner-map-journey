@@ -36,15 +36,39 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
-    
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
+
+    // Decode JWT locally (avoids occasional "session missing" from auth.getUser)
+    const decodeJwt = (t: string) => {
+      const base64Url = t.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, "=");
+      const jsonPayload = atob(padded);
+      return JSON.parse(jsonPayload);
+    };
+
+    let email: string | null = null;
+    let userId: string | null = null;
+
+    try {
+      const payload = decodeJwt(token);
+      email = payload?.email ?? null;
+      userId = payload?.sub ?? null;
+    } catch (_) {
+      // Fallback to GoTrue if needed
+    }
+
+    if (!email) {
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      if (userError) throw new Error(`Authentication error: ${userError.message}`);
+      email = userData.user?.email ?? null;
+      userId = userData.user?.id ?? null;
+    }
+
+    if (!email) throw new Error("User not authenticated or email not available");
+    logStep("User authenticated", { userId, email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customers = await stripe.customers.list({ email: email!, limit: 1 });
     
     if (customers.data.length === 0) {
       logStep("No customer found, returning unsubscribed state");
@@ -71,11 +95,14 @@ serve(async (req) => {
     let subscriptionEnd = null;
 
     if (hasActiveSub && activeOrTrialingSub) {
-      subscriptionEnd = new Date(activeOrTrialingSub.current_period_end * 1000).toISOString();
-      logStep("Active/Trialing subscription found", { 
-        subscriptionId: activeOrTrialingSub.id, 
+      const endUnix = (activeOrTrialingSub as any).current_period_end;
+      if (typeof endUnix === "number" && !Number.isNaN(endUnix)) {
+        subscriptionEnd = new Date(endUnix * 1000).toISOString();
+      }
+      logStep("Active/Trialing subscription found", {
+        subscriptionId: activeOrTrialingSub.id,
         status: activeOrTrialingSub.status,
-        endDate: subscriptionEnd 
+        endDate: subscriptionEnd,
       });
     } else {
       logStep("No active or trialing subscription found");
