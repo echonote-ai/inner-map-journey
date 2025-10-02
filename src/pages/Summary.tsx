@@ -59,13 +59,51 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
     loadReflection();
   }, [navigate, toast]);
 
-  const handleSaveJournal = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveJournal = async () => {
     if (!user) {
-      // Not logged in - go through the flow
       navigate("/life-stage");
-    } else {
-      // Already logged in - go to subscription
-      navigate("/subscription");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1) Check entitlement
+      const { data: entitlement } = await (await import("@/integrations/supabase/client")).supabase.functions.invoke('entitlement');
+
+      if (!entitlement?.entitled) {
+        // metric tracked in backend, show toast and redirect
+        toast({
+          title: "Subscription Required",
+          description: "Upgrade to save your journal and access it later.",
+          variant: "destructive",
+        });
+        navigate(`/subscription?save=true`);
+        return;
+      }
+
+      // 2) Save journal
+      const reflectionType = localStorage.getItem('pendingReflectionType') || 'daily';
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase.functions.invoke('save-journal', {
+        body: { summary, reflection_type: reflectionType },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({ title: "Saved", description: "Your journal has been saved." });
+      // Clean up local storage
+      localStorage.removeItem('pendingReflectionMessages');
+      localStorage.removeItem('pendingReflectionType');
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Save journal error:', err);
+      toast({ title: "Error", description: "Could not save journal.", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -109,9 +147,10 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
           <Button 
             onClick={handleSaveJournal} 
             size="lg"
+            disabled={saving}
             className="bg-primary hover:bg-primary/90"
           >
-            Save Journal
+            {saving ? 'Saving...' : 'Save Journal'}
           </Button>
           <Button onClick={handleNewReflection} size="lg" variant="outline">
             Start New Reflection
