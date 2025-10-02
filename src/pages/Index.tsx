@@ -11,9 +11,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Logout Button */}
-      {user && (
-        <div className="fixed top-4 right-4 z-50">
+      {/* Sign In / Logout Button */}
+      <div className="fixed top-4 right-4 z-50">
+        {user ? (
           <Button
             variant="outline"
             size="sm"
@@ -23,8 +23,17 @@ const Index = () => {
             <LogOut className="w-4 h-4" />
             Sign Out
           </Button>
-        </div>
-      )}
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/auth")}
+            className="gap-2"
+          >
+            Sign In
+          </Button>
+        )}
+      </div>
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
@@ -53,7 +62,7 @@ const Index = () => {
             <Button 
               size="lg" 
               className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-              onClick={() => navigate("/start")}
+              onClick={() => navigate("/life-stage")}
             >
               Start Reflecting
             </Button>
@@ -124,7 +133,7 @@ const Index = () => {
           <Button 
             size="lg" 
             className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-            onClick={() => navigate("/start")}
+            onClick={() => navigate("/life-stage")}
           >
             Begin Your First Reflection
           </Button>

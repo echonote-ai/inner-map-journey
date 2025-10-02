@@ -12,6 +12,7 @@ import Summary from "./pages/Summary";
 import JournalChoice from "./pages/JournalChoice";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
+import LifeStage from "./pages/LifeStage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,8 +25,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/life-stage" element={<LifeStage />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/start" element={<ProtectedRoute><Start /></ProtectedRoute>} />
             <Route path="/reflect" element={<ProtectedRoute><Reflect /></ProtectedRoute>} />
             <Route path="/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />

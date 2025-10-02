@@ -85,21 +85,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl
       }
     });
+
+    // Save life_stage to profile if it exists
+    if (!error && data.user) {
+      const lifeStage = sessionStorage.getItem("life_stage");
+      if (lifeStage) {
+        await supabase
+          .from("profiles")
+          .update({ life_stage: lifeStage })
+          .eq("id", data.user.id);
+        sessionStorage.removeItem("life_stage");
+      }
+    }
+    
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Save life_stage to profile if it exists and profile doesn't have one yet
+    if (!error && data.user) {
+      const lifeStage = sessionStorage.getItem("life_stage");
+      if (lifeStage) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("life_stage")
+          .eq("id", data.user.id)
+          .single();
+        
+        if (!profile?.life_stage) {
+          await supabase
+            .from("profiles")
+            .update({ life_stage: lifeStage })
+            .eq("id", data.user.id);
+        }
+        sessionStorage.removeItem("life_stage");
+      }
+    }
+    
     return { error };
   };
 
