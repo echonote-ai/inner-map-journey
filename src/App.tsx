@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Start from "./pages/Start";
 import Reflect from "./pages/Reflect";
 import Summary from "./pages/Summary";
+import JournalChoice from "./pages/JournalChoice";
+import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +29,8 @@ const App = () => (
             <Route path="/start" element={<ProtectedRoute><Start /></ProtectedRoute>} />
             <Route path="/reflect" element={<ProtectedRoute><Reflect /></ProtectedRoute>} />
             <Route path="/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
+            <Route path="/choice" element={<ProtectedRoute><JournalChoice /></ProtectedRoute>} />
+            <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

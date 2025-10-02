@@ -2,20 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BookOpen, Home, Save, Lock } from "lucide-react";
+import { BookOpen, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 
 const Summary = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { subscribed, checkSubscription } = useAuth();
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
   const reflectionId = searchParams.get("id");
 
   useEffect(() => {
@@ -36,7 +32,6 @@ const Summary = () => {
           .single();
 
         if (reflectionError) throw reflectionError;
-        setIsSaved(reflection?.saved || false);
 
         // Load reflection messages
         const { data: messages, error: messagesError } = await supabase
@@ -90,68 +85,6 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
     navigate("/start");
   };
 
-  const handleSaveJournal = async () => {
-    if (!reflectionId) return;
-
-    if (!subscribed) {
-      // Redirect to checkout
-      setSaving(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('create-checkout');
-        
-        if (error) throw error;
-        
-        if (data?.url) {
-          window.open(data.url, '_blank');
-          toast({
-            title: "Redirecting to checkout",
-            description: "Complete your subscription to save journals",
-          });
-          
-          // Check subscription status after a delay
-          setTimeout(() => {
-            checkSubscription();
-          }, 5000);
-        }
-      } catch (error) {
-        console.error("Error creating checkout:", error);
-        toast({
-          title: "Error",
-          description: "Failed to start checkout process",
-          variant: "destructive",
-        });
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      // Save the journal
-      setSaving(true);
-      try {
-        const { error } = await supabase
-          .from("reflections")
-          .update({ saved: true })
-          .eq("id", reflectionId);
-
-        if (error) throw error;
-
-        setIsSaved(true);
-        toast({
-          title: "Journal saved!",
-          description: "Your reflection has been saved successfully",
-        });
-      } catch (error) {
-        console.error("Error saving journal:", error);
-        toast({
-          title: "Error",
-          description: "Failed to save journal",
-          variant: "destructive",
-        });
-      } finally {
-        setSaving(false);
-      }
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -183,33 +116,13 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
         </Card>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {!isSaved && (
-            <Button 
-              onClick={handleSaveJournal} 
-              size="lg"
-              disabled={saving}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {saving ? (
-                <>Saving...</>
-              ) : subscribed ? (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Journal
-                </>
-              ) : (
-                <>
-                  <Lock className="w-4 h-4 mr-2" />
-                  Subscribe to Save ($9.99/mo)
-                </>
-              )}
-            </Button>
-          )}
-          {isSaved && (
-            <div className="text-center py-2 px-4 bg-primary/10 rounded-lg">
-              <p className="text-sm text-primary font-medium">✓ Journal Saved</p>
-            </div>
-          )}
+          <Button 
+            onClick={() => navigate(`/choice?id=${reflectionId}`)} 
+            size="lg"
+            className="bg-primary hover:bg-primary/90"
+          >
+            What's Next?
+          </Button>
           <Button onClick={handleNewReflection} size="lg" variant="outline">
             Start New Reflection
           </Button>
@@ -218,14 +131,6 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
             Back to Home
           </Button>
         </div>
-
-        {!subscribed && !isSaved && (
-          <Card className="p-4 bg-accent/50 border-accent">
-            <p className="text-sm text-center text-muted-foreground">
-              💡 <strong>Subscribe to save your journals</strong> and access them anytime. Get unlimited journal storage and future premium features!
-            </p>
-          </Card>
-        )}
       </div>
     </div>
   );
