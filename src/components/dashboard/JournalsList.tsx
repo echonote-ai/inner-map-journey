@@ -22,6 +22,8 @@ interface Reflection {
   summary: string;
   created_at: string;
   completed_at: string | null;
+  title?: string;
+  title_source?: string;
 }
 
 export function JournalsList() {
@@ -39,7 +41,7 @@ export function JournalsList() {
     try {
       const { data, error } = await supabase
         .from("reflections")
-        .select("id, reflection_type, summary, created_at, completed_at")
+        .select("id, reflection_type, summary, created_at, completed_at, title, title_source")
         .eq("saved", true)
         .order("created_at", { ascending: false });
 
@@ -92,6 +94,13 @@ export function JournalsList() {
     });
   };
 
+  const getDisplayTitle = (reflection: Reflection) => {
+    if (reflection.title) return reflection.title;
+    return reflection.reflection_type === 'daily' ? 'Daily Reflection' : 
+           reflection.reflection_type === 'event' ? 'Event Reflection' : 
+           'Journal Entry';
+  };
+
   if (loading) {
     return (
       <Card className="p-12 flex items-center justify-center">
@@ -139,14 +148,24 @@ export function JournalsList() {
                     className="flex-1 cursor-pointer"
                     onClick={() => {
                       localStorage.setItem('viewReflection', reflection.summary);
+                      localStorage.setItem('viewReflectionId', reflection.id);
                       navigate('/summary');
                     }}
                   >
                     <div className="space-y-2">
-                      <h3 className="text-lg font-serif font-semibold capitalize group-hover:text-primary transition-colors">
-                        {reflection.reflection_type.replace('_', ' ')}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-serif font-semibold group-hover:text-primary transition-colors">
+                          {getDisplayTitle(reflection)}
+                        </h3>
+                        {reflection.title_source === 'ai' && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            AI
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="capitalize">{reflection.reflection_type.replace('_', ' ')}</span>
+                        <span>•</span>
                         <Calendar className="w-4 h-4" />
                         <span>{formatDate(reflection.created_at)}</span>
                       </div>

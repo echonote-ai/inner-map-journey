@@ -14,6 +14,99 @@ const logStep = (step: string, details?: any) => {
 
 interface SavePayload { summary: string; reflection_type: string; }
 
+// PII redaction patterns
+const PII_PATTERNS = [
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // emails
+  /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, // phone numbers
+  /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g, // SSN
+];
+
+function redactPII(text: string): string {
+  let redacted = text;
+  PII_PATTERNS.forEach(pattern => {
+    redacted = redacted.replace(pattern, '[REDACTED]');
+  });
+  return redacted;
+}
+
+async function generateTitle(summary: string, lovableApiKey: string): Promise<{
+  title: string;
+  model: string;
+} | null> {
+  const startTime = Date.now();
+  logStep('title_generation_attempt', { summaryLength: summary.length });
+
+  try {
+    const redactedSummary = redactPII(summary);
+    const truncatedSummary = redactedSummary.slice(0, 2000);
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a journal title generator. Create concise, descriptive titles (max 60 characters) that capture the essence of journal entries. Generate titles in the same language as the input. Be specific and emotional when appropriate. Return ONLY the title text, nothing else.'
+          },
+          {
+            role: 'user',
+            content: `Generate a short, descriptive title (max 60 characters) for this journal entry:\n\n${truncatedSummary}`
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 30,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      logStep('title_generation_failure', { 
+        status: response.status,
+        error,
+        duration: Date.now() - startTime 
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    const generatedTitle = data.choices?.[0]?.message?.content?.trim();
+
+    if (!generatedTitle) {
+      logStep('title_generation_failure', { 
+        reason: 'empty_response',
+        duration: Date.now() - startTime 
+      });
+      return null;
+    }
+
+    // Truncate if needed and clean up
+    const cleanTitle = generatedTitle
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .slice(0, 60);
+
+    logStep('title_generation_success', { 
+      titleLength: cleanTitle.length,
+      duration: Date.now() - startTime 
+    });
+
+    return {
+      title: cleanTitle,
+      model: 'google/gemini-2.5-flash'
+    };
+  } catch (error) {
+    logStep('title_generation_failure', { 
+      error: error instanceof Error ? error.message : 'unknown',
+      duration: Date.now() - startTime 
+    });
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,7 +118,8 @@ serve(async (req) => {
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!stripeKey || !lovableApiKey) throw new Error("Missing required environment variables");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -111,22 +205,39 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "invalid_payload" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 });
     }
 
+    // Generate AI title
+    logStep('generating_title', { summaryLength: summary.length });
+    const titleResult = await generateTitle(summary, lovableApiKey);
+    
+    const defaultTitle = reflection_type === 'daily' ? 'Daily Reflection' : 
+                        reflection_type === 'event' ? 'Event Reflection' : 
+                        'Journal Entry';
+    
+    const finalTitle = titleResult?.title || defaultTitle;
+    const titleSource = titleResult ? 'ai' : 'default';
+
     // Save reflection
-    const { error } = await supabase.from("reflections").insert({
+    const { data: reflection, error } = await supabase.from("reflections").insert({
       user_id: userId,
       summary,
       reflection_type,
       saved: true,
       completed_at: new Date().toISOString(),
-    });
+      title: finalTitle,
+      generated_title: titleResult?.title,
+      title_source: titleSource,
+      title_generated_at: titleResult ? new Date().toISOString() : null,
+      title_model: titleResult?.model,
+      title_manual_override: false,
+    }).select().single();
 
     if (error) {
       logStep("DB insert error", { message: error.message });
       return new Response(JSON.stringify({ error: "db_error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 });
     }
 
-    logStep("Journal saved", { userId, reflection_type });
-    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+    logStep("Journal saved", { userId, reflection_type, titleSource, titleGenerated: !!titleResult });
+    return new Response(JSON.stringify({ success: true, reflection, titleGenerated: !!titleResult }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logStep("ERROR in save-journal", { message });

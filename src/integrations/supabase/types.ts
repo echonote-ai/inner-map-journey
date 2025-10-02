@@ -83,28 +83,46 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string | null
+          generated_title: string | null
           id: string
           reflection_type: string
           saved: boolean | null
           summary: string | null
+          title: string | null
+          title_generated_at: string | null
+          title_manual_override: boolean | null
+          title_model: string | null
+          title_source: string | null
           user_id: string
         }
         Insert: {
           completed_at?: string | null
           created_at?: string | null
+          generated_title?: string | null
           id?: string
           reflection_type: string
           saved?: boolean | null
           summary?: string | null
+          title?: string | null
+          title_generated_at?: string | null
+          title_manual_override?: boolean | null
+          title_model?: string | null
+          title_source?: string | null
           user_id: string
         }
         Update: {
           completed_at?: string | null
           created_at?: string | null
+          generated_title?: string | null
           id?: string
           reflection_type?: string
           saved?: boolean | null
           summary?: string | null
+          title?: string | null
+          title_generated_at?: string | null
+          title_manual_override?: boolean | null
+          title_model?: string | null
+          title_source?: string | null
           user_id?: string
         }
         Relationships: [

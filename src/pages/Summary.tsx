@@ -12,13 +12,42 @@ const Summary = () => {
   const { user } = useAuth();
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [titleSource, setTitleSource] = useState<string | null>(null);
+  const [reflectionId, setReflectionId] = useState<string | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [regeneratingTitle, setRegeneratingTitle] = useState(false);
 
   useEffect(() => {
     const loadReflection = () => {
       // Check if viewing a saved journal
       const viewReflection = localStorage.getItem('viewReflection');
+      const viewReflectionId = localStorage.getItem('viewReflectionId');
+      
       if (viewReflection) {
         setSummary(viewReflection);
+        setReflectionId(viewReflectionId);
+        
+        // Fetch title if we have reflection ID
+        if (viewReflectionId) {
+          (async () => {
+            const { data } = await (await import("@/integrations/supabase/client")).supabase
+              .from('reflections')
+              .select('title, title_source')
+              .eq('id', viewReflectionId)
+              .single();
+            
+            if (data) {
+              const displayTitle = data.title || 'Journal Entry';
+              setTitle(displayTitle);
+              setEditedTitle(displayTitle);
+              setTitleSource(data.title_source || null);
+            }
+          })();
+        }
+        
         setLoading(false);
         return;
       }
@@ -101,11 +130,20 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
         throw error;
       }
 
-      toast({ title: "Saved", description: "Your journal has been saved." });
+      const savedReflection = data.reflection;
+      
+      toast({ 
+        title: "Saved", 
+        description: data.titleGenerated 
+          ? "Your journal has been saved with an AI-generated title." 
+          : "Your journal has been saved."
+      });
+      
       // Clean up local storage
       localStorage.removeItem('pendingReflectionMessages');
       localStorage.removeItem('pendingReflectionType');
       localStorage.removeItem('viewReflection');
+      localStorage.removeItem('viewReflectionId');
       
       navigate('/dashboard');
     } catch (err) {
@@ -120,7 +158,73 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
     localStorage.removeItem('pendingReflectionMessages');
     localStorage.removeItem('pendingReflectionType');
     localStorage.removeItem('viewReflection');
+    localStorage.removeItem('viewReflectionId');
     navigate("/choice");
+  };
+
+  const handleSaveTitle = async () => {
+    if (!reflectionId || !editedTitle.trim()) return;
+
+    setSavingTitle(true);
+    try {
+      const { error } = await (await import("@/integrations/supabase/client")).supabase
+        .from('reflections')
+        .update({
+          title: editedTitle.trim(),
+          title_manual_override: true,
+        })
+        .eq('id', reflectionId);
+
+      if (error) throw error;
+
+      setTitle(editedTitle.trim());
+      setTitleSource('manual');
+      setIsEditingTitle(false);
+      toast({ title: "Title updated", description: "Your journal title has been saved." });
+    } catch (err) {
+      console.error('Save title error:', err);
+      toast({ title: "Error", description: "Could not update title.", variant: "destructive" });
+    } finally {
+      setSavingTitle(false);
+    }
+  };
+
+  const handleRegenerateTitle = async () => {
+    if (!reflectionId) return;
+
+    setRegeneratingTitle(true);
+    try {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase.functions.invoke(
+        'generate-journal-titles',
+        {
+          body: { 
+            dryRun: false,
+            reflectionId,
+          },
+        }
+      );
+
+      if (error) throw error;
+
+      // Fetch updated reflection
+      const { data: reflection } = await (await import("@/integrations/supabase/client")).supabase
+        .from('reflections')
+        .select('title, title_source')
+        .eq('id', reflectionId)
+        .single();
+
+      if (reflection?.title) {
+        setTitle(reflection.title);
+        setEditedTitle(reflection.title);
+        setTitleSource(reflection.title_source || 'ai');
+        toast({ title: "Title regenerated", description: "A new title has been generated for your journal." });
+      }
+    } catch (err) {
+      console.error('Regenerate title error:', err);
+      toast({ title: "Error", description: "Could not regenerate title.", variant: "destructive" });
+    } finally {
+      setRegeneratingTitle(false);
+    }
   };
 
   if (loading) {
@@ -141,8 +245,84 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-serif font-bold">Your Journal Entry</h1>
-          <p className="text-muted-foreground">Here's your reflection, captured in your own voice</p>
+          
+          {title && (
+            <div className="space-y-2">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2 justify-center">
+                  <input
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    className="text-2xl md:text-3xl font-serif font-bold bg-background border-2 border-primary rounded-lg px-3 py-1 text-center max-w-xl"
+                    maxLength={60}
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveTitle}
+                    disabled={savingTitle || !editedTitle.trim()}
+                  >
+                    {savingTitle ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsEditingTitle(false);
+                      setEditedTitle(title);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 justify-center flex-wrap">
+                  <h1 
+                    className="text-2xl md:text-3xl font-serif font-bold cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setIsEditingTitle(true)}
+                    title="Click to edit"
+                  >
+                    {title}
+                  </h1>
+                  {titleSource === 'ai' && (
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      AI
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {!isEditingTitle && reflectionId && (
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingTitle(true)}
+                  >
+                    Edit Title
+                  </Button>
+                  {titleSource !== 'manual' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleRegenerateTitle}
+                      disabled={regeneratingTitle}
+                    >
+                      {regeneratingTitle ? 'Generating...' : 'Regenerate'}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {!title && (
+            <>
+              <h1 className="text-3xl md:text-4xl font-serif font-bold">Your Journal Entry</h1>
+              <p className="text-muted-foreground">Here's your reflection, captured in your own voice</p>
+            </>
+          )}
         </div>
 
         <Card className="p-6 md:p-8 bg-card border-2">

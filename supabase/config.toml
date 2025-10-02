@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.save-journal]
 verify_jwt = true
+
+[functions.generate-journal-titles]
+verify_jwt = true
