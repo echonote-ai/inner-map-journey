@@ -39,7 +39,7 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Create checkout session
+    // Create checkout session with 7-day trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -50,6 +50,9 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
+      subscription_data: {
+        trial_period_days: 7,
+      },
       success_url: `${req.headers.get("origin")}/`,
       cancel_url: `${req.headers.get("origin")}/summary`,
     });
