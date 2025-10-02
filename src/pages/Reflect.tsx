@@ -111,16 +111,28 @@ const Reflect = () => {
         }),
       });
 
-      if (!resp.ok || !resp.body) {
-        if (resp.status === 429) {
+      if (!resp.ok) {
+        // Try to parse error message from response
+        try {
+          const errorData = await resp.json();
           toast({
-            title: "Rate limit reached",
-            description: "Please try again in a moment",
+            title: "Error",
+            description: errorData.error || "Failed to get response",
             variant: "destructive",
           });
-          return;
+        } catch {
+          toast({
+            title: "Error",
+            description: "Failed to get response. Please try again.",
+            variant: "destructive",
+          });
         }
-        throw new Error("Failed to start stream");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!resp.body) {
+        throw new Error("No response body");
       }
 
       const reader = resp.body.getReader();
