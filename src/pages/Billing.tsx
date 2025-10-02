@@ -36,7 +36,7 @@ interface BillingStatus {
     id: string;
     status: string;
     plan: string;
-    currentPeriodEnd: string;
+    currentPeriodEnd: string | null;
     cancelAtPeriodEnd: boolean;
     trialEnd: string | null;
     amount: number;
@@ -56,6 +56,19 @@ interface BillingStatus {
   }>;
 }
 
+interface UpcomingInvoice {
+  amount: number;
+  currency: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  lines: Array<{
+    description: string;
+    amount: number;
+    currency: string;
+    quantity: number;
+  }>;
+}
+
 const Billing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -65,6 +78,8 @@ const Billing = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [upcomingInvoice, setUpcomingInvoice] = useState<UpcomingInvoice | null>(null);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -81,11 +96,35 @@ const Billing = () => {
       
       if (error) throw error;
       setBillingStatus(data);
+
+      // Fetch upcoming invoice if no invoices exist but subscription is active
+      if (data?.subscription && (!data?.invoices || data.invoices.length === 0)) {
+        fetchUpcomingInvoice();
+      }
     } catch (error: any) {
       console.error("Error fetching billing status:", error);
       toast.error("Failed to load billing information");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUpcomingInvoice = async () => {
+    try {
+      setLoadingUpcoming(true);
+      const { data, error } = await supabase.functions.invoke("billing-upcoming");
+      
+      if (error && error.message !== "No upcoming invoice available") {
+        throw error;
+      }
+      
+      if (data && !data.error) {
+        setUpcomingInvoice(data);
+      }
+    } catch (error: any) {
+      console.error("Error fetching upcoming invoice:", error);
+    } finally {
+      setLoadingUpcoming(false);
     }
   };
 
@@ -186,12 +225,31 @@ const Billing = () => {
     }).format(amount / 100);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+  };
+
+  const getTrialDaysLeft = () => {
+    if (!billingStatus?.subscription?.trialEnd) return null;
+    const trialEnd = new Date(billingStatus.subscription.trialEnd);
+    const now = new Date();
+    const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return daysLeft > 0 ? daysLeft : 0;
+  };
+
+  const getTrialProgress = () => {
+    if (!billingStatus?.subscription?.trialEnd) return 0;
+    const trialEnd = new Date(billingStatus.subscription.trialEnd);
+    const now = new Date();
+    const totalDays = 14; // Assuming 14-day trial
+    const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const progress = ((totalDays - daysLeft) / totalDays) * 100;
+    return Math.min(Math.max(progress, 0), 100);
   };
 
   if (loading) {
@@ -224,39 +282,66 @@ const Billing = () => {
               <span>Current Plan</span>
               {billingStatus?.subscription && getStatusBadge(billingStatus.subscription.status)}
             </CardTitle>
-            <CardDescription>Your current subscription details</CardDescription>
+            <CardDescription>Your subscription and billing information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {billingStatus?.subscription ? (
               <>
+                {/* Trial Status with Progress */}
+                {billingStatus.subscription.status === "trialing" && billingStatus.subscription.trialEnd && (
+                  <div className="p-4 border rounded-lg bg-primary/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-semibold">Trial Active</p>
+                          <p className="text-sm text-muted-foreground">
+                            {getTrialDaysLeft()} days left in your trial
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary">Trial</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Trial ends {formatDate(billingStatus.subscription.trialEnd)}</span>
+                        <span>{Math.round(getTrialProgress())}%</span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{ width: `${getTrialProgress()}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Plan Details */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Inner Explorer</p>
+                    <p className="font-medium">Inner Explorer Premium</p>
                     <p className="text-sm text-muted-foreground">
+                      Unlimited journals with AI-powered insights and reflections
+                    </p>
+                    <p className="text-sm font-medium mt-1">
                       {formatAmount(billingStatus.subscription.amount, billingStatus.subscription.currency)} / {billingStatus.subscription.interval}
                     </p>
                   </div>
-                  {billingStatus.subscription.cancelAtPeriodEnd ? (
-                    <Badge variant="outline" className="gap-1">
-                      <XCircle className="h-3 w-3" />
-                      Cancels {formatDate(billingStatus.subscription.currentPeriodEnd)}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Renews {formatDate(billingStatus.subscription.currentPeriodEnd)}
-                    </Badge>
+                  {billingStatus.subscription.currentPeriodEnd && (
+                    billingStatus.subscription.cancelAtPeriodEnd ? (
+                      <Badge variant="outline" className="gap-1">
+                        <XCircle className="h-3 w-3" />
+                        Cancels {formatDate(billingStatus.subscription.currentPeriodEnd)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        Renews {formatDate(billingStatus.subscription.currentPeriodEnd)}
+                      </Badge>
+                    )
                   )}
                 </div>
-
-                {billingStatus.subscription.trialEnd && (
-                  <Alert>
-                    <Sparkles className="h-4 w-4" />
-                    <AlertDescription>
-                      Your trial ends on {formatDate(billingStatus.subscription.trialEnd)}
-                    </AlertDescription>
-                  </Alert>
-                )}
 
                 <Separator />
 
@@ -321,7 +406,7 @@ const Billing = () => {
         <Card>
           <CardHeader>
             <CardTitle>Billing History</CardTitle>
-            <CardDescription>Your recent invoices and payments</CardDescription>
+            <CardDescription>Your invoices and upcoming charges</CardDescription>
           </CardHeader>
           <CardContent>
             {billingStatus?.invoices && billingStatus.invoices.length > 0 ? (
@@ -353,7 +438,30 @@ const Billing = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No invoices yet</p>
+              <div className="text-center py-8 space-y-4">
+                <p className="text-muted-foreground">No invoices yet</p>
+                {upcomingInvoice && (
+                  <div className="p-4 border rounded-lg bg-muted/50 text-left space-y-2">
+                    <p className="font-medium text-sm">Upcoming Invoice Preview</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {upcomingInvoice.periodStart && upcomingInvoice.periodEnd 
+                          ? `${formatDate(upcomingInvoice.periodStart)} - ${formatDate(upcomingInvoice.periodEnd)}`
+                          : "Next billing period"}
+                      </span>
+                      <span className="font-semibold">{formatAmount(upcomingInvoice.amount, upcomingInvoice.currency)}</span>
+                    </div>
+                    {upcomingInvoice.lines.map((line, idx) => (
+                      <div key={idx} className="text-xs text-muted-foreground">
+                        {line.description}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {loadingUpcoming && (
+                  <RefreshCw className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

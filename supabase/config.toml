@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.billing-reactivate]
 verify_jwt = true
+
+[functions.billing-upcoming]
+verify_jwt = true

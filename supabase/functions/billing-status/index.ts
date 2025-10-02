@@ -90,14 +90,29 @@ serve(async (req) => {
       const priceId = sub.items.data[0]?.price?.id;
       const productId = sub.items.data[0]?.price?.product as string;
       
+      // Safely handle timestamps that might be null/undefined
+      let currentPeriodEnd = null;
+      let trialEnd = null;
+      
+      try {
+        if (sub.current_period_end) {
+          currentPeriodEnd = new Date(sub.current_period_end * 1000).toISOString();
+        }
+        if (sub.trial_end) {
+          trialEnd = new Date(sub.trial_end * 1000).toISOString();
+        }
+      } catch (error: any) {
+        logStep("Error parsing dates", { error: error?.message || String(error) });
+      }
+      
       subscriptionData = {
         id: sub.id,
         status: sub.status,
         plan: productId,
         priceId,
-        currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+        currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
-        trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+        trialEnd,
         amount: sub.items.data[0]?.price?.unit_amount || 0,
         currency: sub.items.data[0]?.price?.currency || "usd",
         interval: sub.items.data[0]?.price?.recurring?.interval || "month",
