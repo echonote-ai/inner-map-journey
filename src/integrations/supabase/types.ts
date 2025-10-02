@@ -17,21 +17,30 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          gender: string | null
           id: string
           life_stage: string | null
+          preferred_nickname: string | null
           updated_at: string | null
+          username: string | null
         }
         Insert: {
           created_at?: string | null
+          gender?: string | null
           id: string
           life_stage?: string | null
+          preferred_nickname?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Update: {
           created_at?: string | null
+          gender?: string | null
           id?: string
           life_stage?: string | null
+          preferred_nickname?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Relationships: []
       }

@@ -12,6 +12,7 @@ import Summary from "./pages/Summary";
 import JournalChoice from "./pages/JournalChoice";
 import Subscription from "./pages/Subscription";
 import Auth from "./pages/Auth";
+import Signup from "./pages/Signup";
 import LifeStage from "./pages/LifeStage";
 import Goodbye from "./pages/Goodbye";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/life-stage" element={<LifeStage />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/goodbye" element={<Goodbye />} />
             <Route path="/choice" element={<JournalChoice />} />
             <Route path="/reflect" element={<Reflect />} />

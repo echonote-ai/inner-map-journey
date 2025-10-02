@@ -40,12 +40,12 @@ const LifeStage = () => {
     if (selectedStage) {
       sessionStorage.setItem("life_stage", selectedStage);
     }
-    navigate("/auth");
+    navigate("/signup");
   };
 
   const handleSkip = () => {
     sessionStorage.removeItem("life_stage");
-    navigate("/auth");
+    navigate("/signup");
   };
 
   return (
