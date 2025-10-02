@@ -1,14 +1,31 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Heart, Sparkles, BookOpen } from "lucide-react";
+import { Heart, Sparkles, BookOpen, LogOut } from "lucide-react";
 import heroImage from "@/assets/hero-reflection.jpg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
 
   return (
     <div className="min-h-screen">
+      {/* Logout Button */}
+      {user && (
+        <div className="fixed top-4 right-4 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={signOut}
+            className="gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
         <div 

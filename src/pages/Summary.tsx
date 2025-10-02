@@ -1,41 +1,90 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Home } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Summary = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
   const [summary, setSummary] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const messages = sessionStorage.getItem("reflectionMessages");
-    
-    if (!messages) {
-      navigate("/start");
-      return;
-    }
+    const loadReflection = async () => {
+      const reflectionId = searchParams.get("id");
+      
+      if (!reflectionId) {
+        navigate("/start");
+        return;
+      }
 
-    // Simulate AI summary generation
-    const parsedMessages = JSON.parse(messages);
-    const userMessages = parsedMessages
-      .filter((m: any) => m.role === "user")
-      .map((m: any) => m.content);
+      try {
+        // Load reflection messages
+        const { data: messages, error: messagesError } = await supabase
+          .from("reflection_messages")
+          .select("*")
+          .eq("reflection_id", reflectionId)
+          .order("created_at", { ascending: true });
 
-    // Create a simple first-person summary
-    const generatedSummary = `Today I took time to reflect on my thoughts and feelings. ${userMessages.join(" ")} 
+        if (messagesError) throw messagesError;
+
+        if (!messages || messages.length === 0) {
+          navigate("/start");
+          return;
+        }
+
+        // Generate summary from messages
+        const userMessages = messages
+          .filter((m) => m.role === "user")
+          .map((m) => m.content);
+
+        const generatedSummary = `Today I took time to reflect on my thoughts and feelings. ${userMessages.join(" ")} 
 
 Through this reflection, I'm recognizing patterns in how I respond to situations and what truly matters to me. It's becoming clearer that I need to honor these insights and carry them forward with intention.
 
 This moment of pause reminded me that self-awareness is an ongoing practice, and I'm grateful for this space to process and understand myself better.`;
 
-    setSummary(generatedSummary);
-  }, [navigate]);
+        // Save summary back to reflection
+        await supabase
+          .from("reflections")
+          .update({ summary: generatedSummary })
+          .eq("id", reflectionId);
+
+        setSummary(generatedSummary);
+      } catch (error) {
+        console.error("Error loading reflection:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load reflection",
+          variant: "destructive",
+        });
+        navigate("/start");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReflection();
+  }, [navigate, searchParams, toast]);
 
   const handleNewReflection = () => {
-    sessionStorage.removeItem("reflectionMessages");
     navigate("/start");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading your reflection...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">

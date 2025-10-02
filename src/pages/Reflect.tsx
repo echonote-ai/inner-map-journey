@@ -1,21 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Reflect = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
+  const [reflectionId, setReflectionId] = useState<string | null>(null);
 
   const reflectionType = searchParams.get("type") || "daily";
+
+  useEffect(() => {
+    // Create reflection session when component mounts
+    const createReflection = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("reflections")
+        .insert({
+          user_id: user.id,
+          reflection_type: reflectionType,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating reflection:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create reflection session",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setReflectionId(data.id);
+    };
+
+    createReflection();
+  }, [user, reflectionType, toast]);
 
   const startReflection = () => {
     const initialPrompt = reflectionType === "daily"
@@ -26,13 +59,20 @@ const Reflect = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !reflectionId) return;
 
     const userMessage = { role: "user", content: input };
     const allMessages = [...messages, userMessage];
     setMessages(allMessages);
     setInput("");
     setIsLoading(true);
+
+    // Save user message to database
+    await supabase.from("reflection_messages").insert({
+      reflection_id: reflectionId,
+      role: "user",
+      content: input,
+    });
 
     try {
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reflection-chat`;
@@ -130,6 +170,15 @@ const Reflect = () => {
           } catch { /* ignore partial leftovers */ }
         }
       }
+
+      // Save assistant message to database
+      if (assistantContent && reflectionId) {
+        await supabase.from("reflection_messages").insert({
+          reflection_id: reflectionId,
+          role: "assistant",
+          content: assistantContent,
+        });
+      }
     } catch (error) {
       console.error("Error in reflection chat:", error);
       toast({
@@ -142,7 +191,7 @@ const Reflect = () => {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (messages.length < 4) {
       toast({
         title: "Continue reflecting",
@@ -150,10 +199,16 @@ const Reflect = () => {
       });
       return;
     }
+
+    if (!reflectionId) return;
+
+    // Mark reflection as complete
+    await supabase
+      .from("reflections")
+      .update({ completed_at: new Date().toISOString() })
+      .eq("id", reflectionId);
     
-    // Store messages in session storage for summary page
-    sessionStorage.setItem("reflectionMessages", JSON.stringify(messages));
-    navigate("/summary");
+    navigate(`/summary?id=${reflectionId}`);
   };
 
   if (messages.length === 0) {
