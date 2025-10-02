@@ -23,15 +23,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   const checkSubscription = async () => {
-    if (!session) {
-      setSubscribed(false);
-      return;
-    }
-
     try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (!currentSession) {
+        setSubscribed(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${currentSession.access_token}`,
         },
       });
 
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      console.log('Subscription check result:', data);
       setSubscribed(data?.subscribed || false);
     } catch (error) {
       console.error('Error checking subscription:', error);
