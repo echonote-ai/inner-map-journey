@@ -17,6 +17,7 @@ import LifeStage from "./pages/LifeStage";
 import Goodbye from "./pages/Goodbye";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import Billing from "./pages/Billing";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/summary" element={<Summary />} />
             <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

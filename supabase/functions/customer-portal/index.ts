@@ -84,12 +84,12 @@ serve(async (req) => {
         
         return new Response(JSON.stringify({ 
           error: "customer_reconciliation_failed",
-          message: "We're linking your billing account — try again in a few seconds.",
-          action: "retry",
+          message: "Unable to link your billing account. Please contact support.",
+          action: "contact_support",
           requestId,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 503,
+          status: 409,
         });
       }
     }
@@ -130,9 +130,10 @@ serve(async (req) => {
       if (stripeError.code === 'account_invalid' || stripeError.message?.includes('configuration')) {
         return new Response(JSON.stringify({ 
           error: "portal_not_configured",
-          message: "The billing portal is being set up. Please contact support for assistance.",
-          action: "contact_support",
+          message: "The billing portal needs to be configured in Stripe. Please visit https://dashboard.stripe.com/settings/billing/portal to activate it, then try again.",
+          action: "setup_required",
           requestId,
+          setupUrl: "https://dashboard.stripe.com/settings/billing/portal",
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 503,
