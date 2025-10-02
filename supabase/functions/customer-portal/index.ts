@@ -12,13 +12,21 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
 
+const logMetric = (metric: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[METRIC] ${metric}${detailsStr}`);
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestId = crypto.randomUUID();
+  
   try {
-    logStep("Function started");
+    logStep("Function started", { requestId });
+    logMetric("portal_session_attempt", { requestId });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
@@ -51,18 +59,39 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    let customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
+    // If no customer found, attempt reconciliation
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
-      return new Response(JSON.stringify({ 
-        error: "no_customer",
-        message: "No billing account found. Please complete checkout first.",
-        action: "redirect_checkout"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 404,
-      });
+      logStep("No Stripe customer found, attempting reconciliation");
+      logMetric("customer_reconciliation_attempt", { email: user.email });
+      
+      try {
+        // Create a new customer
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            supabase_user_id: user.id,
+          },
+        });
+        
+        logStep("Created new Stripe customer", { customerId: newCustomer.id });
+        logMetric("customer_reconciliation_success", { customerId: newCustomer.id });
+        customers = { data: [newCustomer] } as any;
+      } catch (reconcileError: any) {
+        logStep("Customer reconciliation failed", { error: reconcileError.message });
+        logMetric("customer_reconciliation_failure", { error: reconcileError.code });
+        
+        return new Response(JSON.stringify({ 
+          error: "customer_reconciliation_failed",
+          message: "We're linking your billing account — try again in a few seconds.",
+          action: "retry",
+          requestId,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 503,
+        });
+      }
     }
     
     const customerId = customers.data[0].id;
@@ -76,9 +105,12 @@ serve(async (req) => {
         return_url: `${origin}/dashboard`,
       });
       logStep("Customer portal session created", { sessionId: portalSession.id });
-      logStep("portal_session_success");
+      logMetric("portal_session_success", { customerId, requestId });
 
-      return new Response(JSON.stringify({ url: portalSession.url }), {
+      return new Response(JSON.stringify({ 
+        url: portalSession.url,
+        requestId 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -88,15 +120,19 @@ serve(async (req) => {
         message: stripeError.message,
         type: stripeError.type 
       });
-      logStep("portal_session_failure", { error_code: stripeError.code });
+      logMetric("portal_session_failure", { 
+        error_code: stripeError.code,
+        error_type: stripeError.type,
+        requestId 
+      });
       
-      // Handle specific Stripe errors
+      // Handle specific Stripe errors with user-friendly messages
       if (stripeError.code === 'account_invalid' || stripeError.message?.includes('configuration')) {
         return new Response(JSON.stringify({ 
           error: "portal_not_configured",
-          message: "Billing portal is not set up. Please contact support.",
+          message: "The billing portal is being set up. Please contact support for assistance.",
           action: "contact_support",
-          stripeError: stripeError.message
+          requestId,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 503,
@@ -108,13 +144,14 @@ serve(async (req) => {
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorCode = error?.code || 'unknown';
-    logStep("ERROR in customer-portal", { message: errorMessage, code: errorCode });
-    logStep("portal_session_failure", { error_code: errorCode });
+    logStep("ERROR in customer-portal", { message: errorMessage, code: errorCode, requestId });
+    logMetric("portal_session_failure", { error_code: errorCode, requestId });
     
     return new Response(JSON.stringify({ 
       error: errorCode,
-      message: errorMessage,
-      action: "retry"
+      message: "We couldn't open your billing portal right now. Please try again or contact support.",
+      action: "retry",
+      requestId,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
