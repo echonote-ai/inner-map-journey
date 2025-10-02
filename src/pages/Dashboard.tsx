@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, LogOut } from "lucide-react";
 import { UserInfoCard } from "@/components/dashboard/UserInfoCard";
 import { SubscriptionCard } from "@/components/dashboard/SubscriptionCard";
 import { JournalsList } from "@/components/dashboard/JournalsList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, subscribed, checkSubscription } = useAuth();
+  const { user, subscribed, checkSubscription, signOut } = useAuth();
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
@@ -63,14 +63,24 @@ const Dashboard = () => {
               Manage your profile, subscription, and journal entries
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate("/")}
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back Home
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/")}
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back Home
+            </Button>
+            <Button
+              variant="outline"
+              onClick={signOut}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Log Out
+            </Button>
+          </div>
         </div>
 
         {/* User Info & Subscription Cards */}
