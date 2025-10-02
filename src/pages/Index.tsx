@@ -1,18 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Heart, Sparkles, BookOpen, LogOut } from "lucide-react";
+import { Heart, Sparkles, BookOpen, LogOut, LayoutDashboard } from "lucide-react";
 import heroImage from "@/assets/hero-reflection.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut, user, subscribed } = useAuth();
 
   return (
     <div className="min-h-screen">
-      {/* Sign In / Logout Button */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Header Buttons */}
+      <div className="fixed top-4 right-4 z-50 flex gap-2">
+        {user && subscribed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/dashboard")}
+            className="gap-2"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            My Journals
+          </Button>
+        )}
         {user ? (
           <Button
             variant="outline"

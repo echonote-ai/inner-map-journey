@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import Signup from "./pages/Signup";
 import LifeStage from "./pages/LifeStage";
 import Goodbye from "./pages/Goodbye";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/reflect" element={<Reflect />} />
             <Route path="/summary" element={<Summary />} />
             <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
