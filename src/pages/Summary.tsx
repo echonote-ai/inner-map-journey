@@ -15,7 +15,15 @@ const Summary = () => {
 
   useEffect(() => {
     const loadReflection = () => {
-      // Load messages from localStorage
+      // Check if viewing a saved journal
+      const viewReflection = localStorage.getItem('viewReflection');
+      if (viewReflection) {
+        setSummary(viewReflection);
+        setLoading(false);
+        return;
+      }
+
+      // Load messages from localStorage for new reflections
       const messagesStr = localStorage.getItem('pendingReflectionMessages');
       
       if (!messagesStr) {
@@ -97,6 +105,7 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
       // Clean up local storage
       localStorage.removeItem('pendingReflectionMessages');
       localStorage.removeItem('pendingReflectionType');
+      localStorage.removeItem('viewReflection');
       
       navigate('/dashboard');
     } catch (err) {
@@ -110,6 +119,7 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
   const handleNewReflection = () => {
     localStorage.removeItem('pendingReflectionMessages');
     localStorage.removeItem('pendingReflectionType');
+    localStorage.removeItem('viewReflection');
     navigate("/choice");
   };
 
