@@ -24,7 +24,7 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate("/choice");
     }
   }, [user, navigate]);
 
@@ -91,7 +91,7 @@ export default function Auth() {
         title: "Success",
         description: "Signed in successfully!",
       });
-      navigate("/");
+      navigate("/choice");
     }
 
     setLoading(false);
