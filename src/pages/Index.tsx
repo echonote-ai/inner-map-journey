@@ -62,7 +62,7 @@ const Index = () => {
             <Button 
               size="lg" 
               className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-              onClick={() => navigate(user ? '/choice' : '/life-stage')}
+              onClick={() => navigate('/choice')}
             >
               Start Reflecting
             </Button>
@@ -133,7 +133,7 @@ const Index = () => {
           <Button 
             size="lg" 
             className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
-            onClick={() => navigate(user ? '/choice' : '/life-stage')}
+            onClick={() => navigate('/choice')}
           >
             Begin Your First Reflection
           </Button>
