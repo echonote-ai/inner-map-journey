@@ -35,18 +35,18 @@ const About = () => {
       <section className="pt-32 pb-20 px-6">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-5xl md:text-6xl font-serif font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Pause. Reflect. Rediscover Yourself.
+            Your Inner World Mapped & Understood
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            A gentle reflection tool for busy people who need to pause, process, and find their way back to themselves.
+            A private, simple space for busy people to pause, reflect, and rediscover their inner compass. Not advice. Not coaching. Just a mirror that helps you hear your own voice.
           </p>
           <div className="flex gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate("/start")}>
-              Start Reflecting (Free)
+            <Button size="lg" onClick={() => navigate("/choice")}>
+              Start your InnerMap
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate("/#how-it-works")}>
-              See How It Works
+            <Button size="lg" variant="outline" onClick={() => navigate("/")}>
+              Learn how it works
             </Button>
           </div>
         </div>
@@ -57,7 +57,7 @@ const About = () => {
         <div className="container mx-auto max-w-3xl text-center">
           <h3 className="text-3xl font-serif font-bold mb-6">What is InnerMap?</h3>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            InnerMap is a private reflection companion for overwhelmed parents and makers. Through guided conversation, it helps you pause, process your thoughts, and rediscover the clarity buried beneath daily chaos.
+            InnerMap helps you slow down and find clarity through short, guided reflections and private journals. Built for parents, makers, and anyone carrying too much at once, InnerMap provides tiny exercises that help you notice what matters and reconnect with your strengths. The result: steadier days and a quieter, truer you.
           </p>
         </div>
       </section>
@@ -68,7 +68,7 @@ const About = () => {
           <h3 className="text-3xl font-serif font-bold mb-8 text-center">Why We Built This</h3>
           <div className="prose prose-lg mx-auto text-muted-foreground">
             <p className="leading-relaxed text-center italic">
-              I built InnerMap during a season when I felt completely lost—juggling work, family, and a persistent feeling that I'd forgotten who I was beneath all the doing. Therapy waitlists were months long, and journaling felt too unstructured. I needed something simple, private, and immediate. InnerMap became that quiet companion I wished existed: a space to pause, reflect, and find my way back to myself without judgment or pressure.
+              I'm a mom of two who moved from architecture into software engineering — a shift that came with years of pressure, uncertainty, and low confidence. I tried therapy, coaching, books, and endless how-to videos, but none of those alone helped me find lasting clarity. Slowly I realized the answer wasn't another tool — it was listening to myself. InnerMap was born from that discovery: a small, gentle mirror that helps people stop searching outward and start finding what's already inside.
             </p>
           </div>
         </div>
@@ -107,30 +107,35 @@ const About = () => {
         </div>
       </section>
 
-      {/* Values */}
+      {/* Mission & Values */}
       <section className="py-20 px-6">
         <div className="container mx-auto max-w-5xl">
-          <h3 className="text-3xl font-serif font-bold mb-12 text-center">Why It Matters</h3>
+          <h3 className="text-3xl font-serif font-bold mb-6 text-center">Our Mission</h3>
+          <p className="text-xl text-muted-foreground text-center mb-12 max-w-3xl mx-auto italic">
+            To give busy people a simple, reliable way to pause, reflect, and locate the inner resources they already have.
+          </p>
+          
+          <h4 className="text-2xl font-serif font-bold mb-8 text-center">Core Values</h4>
           <div className="grid md:grid-cols-3 gap-8">
             <Card>
               <CardContent className="pt-6">
-                <Lock className="w-10 h-10 text-primary mb-4" />
-                <h4 className="text-xl font-semibold mb-2">Privacy First</h4>
-                <p className="text-muted-foreground">Your reflections stay yours—no sharing, no tracking</p>
+                <Sparkles className="w-10 h-10 text-primary mb-4" />
+                <h5 className="text-xl font-semibold mb-2">Simplicity over complexity</h5>
+                <p className="text-muted-foreground">We strip away everything that doesn't serve your reflection</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <Heart className="w-10 h-10 text-primary mb-4" />
-                <h4 className="text-xl font-semibold mb-2">Gentle Guidance</h4>
-                <p className="text-muted-foreground">Structured enough to help, flexible enough to breathe</p>
+                <h5 className="text-xl font-semibold mb-2">Compassionate honesty</h5>
+                <p className="text-muted-foreground">Gentle questions that help you see yourself clearly</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <Sparkles className="w-10 h-10 text-primary mb-4" />
-                <h4 className="text-xl font-semibold mb-2">Real Clarity</h4>
-                <p className="text-muted-foreground">Not productivity hacks—genuine self-understanding</p>
+                <Lock className="w-10 h-10 text-primary mb-4" />
+                <h5 className="text-xl font-semibold mb-2">Practical reflection, not performance</h5>
+                <p className="text-muted-foreground">Real insights for real life, not social media moments</p>
               </CardContent>
             </Card>
           </div>
@@ -205,10 +210,10 @@ const About = () => {
         <div className="container mx-auto max-w-3xl text-center">
           <h3 className="text-3xl font-serif font-bold mb-6">Ready to Begin?</h3>
           <p className="text-lg text-muted-foreground mb-8">
-            You deserve a moment to pause. Start your first reflection and discover what's waiting beneath the noise.
+            A tiny mirror for big inner discoveries.
           </p>
-          <Button size="lg" onClick={() => navigate("/start")}>
-            Start Your First Reflection
+          <Button size="lg" onClick={() => navigate("/choice")}>
+            Start your InnerMap
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
