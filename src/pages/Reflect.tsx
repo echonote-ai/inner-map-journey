@@ -26,34 +26,12 @@ const Reflect = () => {
   const reflectionType = searchParams.get("type") || "daily";
 
   useEffect(() => {
-    // Create reflection session when component mounts
-    const createReflection = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from("reflections")
-        .insert({
-          user_id: user.id,
-          reflection_type: reflectionType,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error creating reflection:", error);
-        toast({
-          title: "Error",
-          description: "Failed to create reflection session",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setReflectionId(data.id);
-    };
-
-    createReflection();
-  }, [user, reflectionType, toast]);
+    // Check if there's a pending reflection ID in localStorage
+    const pendingId = localStorage.getItem('pendingReflectionId');
+    if (pendingId) {
+      setReflectionId(pendingId);
+    }
+  }, []);
 
   const startReflection = () => {
     const initialPrompt = reflectionType === "daily"
@@ -64,7 +42,7 @@ const Reflect = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || !reflectionId) return;
+    if (!input.trim()) return;
 
     // Validate input
     const validation = reflectionInputSchema.safeParse({ content: input });
@@ -83,27 +61,13 @@ const Reflect = () => {
     setInput("");
     setIsLoading(true);
 
-    // Save user message to database
-    await supabase.from("reflection_messages").insert({
-      reflection_id: reflectionId,
-      role: "user",
-      content: input.trim(),
-    });
-
     try {
-      // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        throw new Error("No active session");
-      }
-
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reflection-chat`;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ 
           messages: allMessages,
@@ -206,14 +170,8 @@ const Reflect = () => {
         }
       }
 
-      // Save assistant message to database
-      if (assistantContent && reflectionId) {
-        await supabase.from("reflection_messages").insert({
-          reflection_id: reflectionId,
-          role: "assistant",
-          content: assistantContent,
-        });
-      }
+      // Store messages in localStorage for now (will save to DB after login)
+      localStorage.setItem('pendingReflectionMessages', JSON.stringify(allMessages.concat({ role: "assistant", content: assistantContent })));
     } catch (error) {
       console.error("Error in reflection chat:", error);
       toast({
@@ -226,7 +184,7 @@ const Reflect = () => {
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (messages.length < 4) {
       toast({
         title: "Continue reflecting",
@@ -235,15 +193,11 @@ const Reflect = () => {
       return;
     }
 
-    if (!reflectionId) return;
-
-    // Mark reflection as complete
-    await supabase
-      .from("reflections")
-      .update({ completed_at: new Date().toISOString() })
-      .eq("id", reflectionId);
+    // Store messages in localStorage
+    localStorage.setItem('pendingReflectionMessages', JSON.stringify(messages));
+    localStorage.setItem('pendingReflectionType', reflectionType);
     
-    navigate(`/summary?id=${reflectionId}`);
+    navigate(`/summary`);
   };
 
   if (messages.length === 0) {
@@ -262,7 +216,7 @@ const Reflect = () => {
           <Button onClick={startReflection} size="lg" className="w-full">
             Begin Reflection
           </Button>
-          <Button variant="ghost" onClick={() => navigate("/start")}>
+          <Button variant="ghost" onClick={() => navigate("/choice")}>
             Choose different type
           </Button>
         </Card>

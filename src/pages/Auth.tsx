@@ -24,7 +24,13 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      navigate("/choice");
+      // Check if there's a pending reflection
+      const hasPendingReflection = localStorage.getItem('pendingReflectionMessages');
+      if (hasPendingReflection) {
+        navigate("/subscription");
+      } else {
+        navigate("/choice");
+      }
     }
   }, [user, navigate]);
 
@@ -91,7 +97,13 @@ export default function Auth() {
         title: "Success",
         description: "Signed in successfully!",
       });
-      navigate("/choice");
+      // Check if there's a pending reflection
+      const hasPendingReflection = localStorage.getItem('pendingReflectionMessages');
+      if (hasPendingReflection) {
+        navigate("/subscription");
+      } else {
+        navigate("/choice");
+      }
     }
 
     setLoading(false);

@@ -28,10 +28,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/life-stage" element={<LifeStage />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/start" element={<ProtectedRoute><Start /></ProtectedRoute>} />
-            <Route path="/reflect" element={<ProtectedRoute><Reflect /></ProtectedRoute>} />
-            <Route path="/summary" element={<ProtectedRoute><Summary /></ProtectedRoute>} />
-            <Route path="/choice" element={<ProtectedRoute><JournalChoice /></ProtectedRoute>} />
+            <Route path="/choice" element={<JournalChoice />} />
+            <Route path="/reflect" element={<Reflect />} />
+            <Route path="/summary" element={<Summary />} />
             <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

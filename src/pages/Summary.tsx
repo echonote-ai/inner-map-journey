@@ -1,68 +1,46 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BookOpen, Home } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Summary = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(true);
-  const reflectionId = searchParams.get("id");
 
   useEffect(() => {
-    const loadReflection = async () => {
-      const reflectionId = searchParams.get("id");
+    const loadReflection = () => {
+      // Load messages from localStorage
+      const messagesStr = localStorage.getItem('pendingReflectionMessages');
       
-      if (!reflectionId) {
-        navigate("/start");
+      if (!messagesStr) {
+        navigate("/choice");
         return;
       }
 
       try {
-        // Load reflection data
-        const { data: reflection, error: reflectionError } = await supabase
-          .from("reflections")
-          .select("*")
-          .eq("id", reflectionId)
-          .single();
-
-        if (reflectionError) throw reflectionError;
-
-        // Load reflection messages
-        const { data: messages, error: messagesError } = await supabase
-          .from("reflection_messages")
-          .select("*")
-          .eq("reflection_id", reflectionId)
-          .order("created_at", { ascending: true });
-
-        if (messagesError) throw messagesError;
-
+        const messages = JSON.parse(messagesStr);
+        
         if (!messages || messages.length === 0) {
-          navigate("/start");
+          navigate("/choice");
           return;
         }
 
         // Generate summary from messages
         const userMessages = messages
-          .filter((m) => m.role === "user")
-          .map((m) => m.content);
+          .filter((m: any) => m.role === "user")
+          .map((m: any) => m.content);
 
         const generatedSummary = `Today I took time to reflect on my thoughts and feelings. ${userMessages.join(" ")} 
 
 Through this reflection, I'm recognizing patterns in how I respond to situations and what truly matters to me. It's becoming clearer that I need to honor these insights and carry them forward with intention.
 
 This moment of pause reminded me that self-awareness is an ongoing practice, and I'm grateful for this space to process and understand myself better.`;
-
-        // Save summary back to reflection
-        await supabase
-          .from("reflections")
-          .update({ summary: generatedSummary })
-          .eq("id", reflectionId);
 
         setSummary(generatedSummary);
       } catch (error) {
@@ -72,17 +50,29 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
           description: "Failed to load reflection",
           variant: "destructive",
         });
-        navigate("/start");
+        navigate("/choice");
       } finally {
         setLoading(false);
       }
     };
 
     loadReflection();
-  }, [navigate, searchParams, toast]);
+  }, [navigate, toast]);
+
+  const handleSaveJournal = () => {
+    if (!user) {
+      // Not logged in - go through the flow
+      navigate("/life-stage");
+    } else {
+      // Already logged in - go to subscription
+      navigate("/subscription");
+    }
+  };
 
   const handleNewReflection = () => {
-    navigate("/start");
+    localStorage.removeItem('pendingReflectionMessages');
+    localStorage.removeItem('pendingReflectionType');
+    navigate("/choice");
   };
 
   if (loading) {
@@ -117,11 +107,11 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button 
-            onClick={() => navigate(`/choice?id=${reflectionId}`)} 
+            onClick={handleSaveJournal} 
             size="lg"
             className="bg-primary hover:bg-primary/90"
           >
-            What's Next?
+            Save Journal
           </Button>
           <Button onClick={handleNewReflection} size="lg" variant="outline">
             Start New Reflection
