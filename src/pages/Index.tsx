@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Heart, Sparkles, BookOpen, LogOut, LayoutDashboard } from "lucide-react";
+import { Heart, Sparkles, BookOpen, Mail } from "lucide-react";
 import heroImage from "@/assets/hero-reflection.jpg";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -11,43 +11,50 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Header Buttons */}
-      <div className="fixed top-4 right-4 z-50 flex gap-2">
-        {user && subscribed && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/dashboard")}
-            className="gap-2"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            My Journals
-          </Button>
-        )}
-        {user ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={signOut}
-            className="gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/auth")}
-            className="gap-2"
-          >
-            Sign In
-          </Button>
-        )}
-      </div>
+      {/* Header Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-serif font-bold text-primary">Inner Map</h2>
+          
+          <nav className="flex items-center gap-6">
+            <Button
+              variant="ghost"
+              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              About
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/subscription')}
+            >
+              Pricing
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Contact
+            </Button>
+            {user ? (
+              <Button
+                onClick={() => navigate('/dashboard')}
+                className="gap-2"
+              >
+                My Account
+              </Button>
+            ) : (
+              <Button
+                onClick={() => navigate('/auth')}
+              >
+                Log In
+              </Button>
+            )}
+          </nav>
+        </div>
+      </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-20">
         <div 
           className="absolute inset-0 z-0 opacity-30"
           style={{
@@ -148,6 +155,28 @@ const Index = () => {
           >
             Begin Your First Reflection
           </Button>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-24 px-4 bg-accent/30">
+        <div className="max-w-3xl mx-auto text-center space-y-8">
+          <div className="space-y-4">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold">Get in Touch</h2>
+            <p className="text-xl text-muted-foreground">
+              Have questions or feedback? We'd love to hear from you.
+            </p>
+          </div>
+          
+          <Card className="p-8 space-y-6">
+            <div className="flex items-center justify-center gap-2 text-primary">
+              <Mail className="w-6 h-6" />
+              <span className="text-lg font-medium">support@innermap.com</span>
+            </div>
+            <p className="text-muted-foreground">
+              We typically respond within 24 hours
+            </p>
+          </Card>
         </div>
       </section>
     </div>
