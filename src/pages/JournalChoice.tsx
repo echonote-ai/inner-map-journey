@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar, Sparkles } from "lucide-react";
+import { NavBar } from "@/components/NavBar";
 
 const JournalChoice = () => {
   const navigate = useNavigate();
@@ -22,8 +23,10 @@ const JournalChoice = () => {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen">
+      <NavBar />
+      <div className="flex items-center justify-center p-4 pt-24">
+        <div className="max-w-2xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center space-y-3">
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground">
             What feels right for you?
@@ -59,6 +62,7 @@ const JournalChoice = () => {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

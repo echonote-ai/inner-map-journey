@@ -6,6 +6,7 @@ import { Check, Sparkles, Crown, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { NavBar } from "@/components/NavBar";
 
 const Subscription = () => {
   const navigate = useNavigate();
@@ -132,8 +133,10 @@ const Subscription = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-16">
-      <div className="max-w-7xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen">
+      <NavBar />
+      <div className="flex items-center justify-center p-4 py-24">
+        <div className="max-w-7xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-5xl font-serif font-bold">
             Choose Your Path
@@ -242,6 +245,7 @@ const Subscription = () => {
           </p>
         </div>
       </div>
+    </div>
     </div>
   );
 };

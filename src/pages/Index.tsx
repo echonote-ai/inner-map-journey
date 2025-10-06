@@ -3,55 +3,14 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Heart, Sparkles, BookOpen, Mail } from "lucide-react";
 import heroImage from "@/assets/hero-reflection.jpg";
-import { useAuth } from "@/contexts/AuthContext";
+import { NavBar } from "@/components/NavBar";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { signOut, user, subscribed } = useAuth();
 
   return (
     <div className="min-h-screen">
-      {/* Header Navigation */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-serif font-bold text-primary">Inner Map</h2>
-          
-          <nav className="flex items-center gap-6">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/about')}
-            >
-              About
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/subscription')}
-            >
-              Pricing
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              Contact
-            </Button>
-            {user ? (
-              <Button
-                onClick={() => navigate('/dashboard')}
-                className="gap-2"
-              >
-                My Account
-              </Button>
-            ) : (
-              <Button
-                onClick={() => navigate('/auth')}
-              >
-                Log In
-              </Button>
-            )}
-          </nav>
-        </div>
-      </header>
+      <NavBar />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden pt-20">

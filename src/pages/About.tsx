@@ -8,28 +8,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { NavBar } from "@/components/NavBar";
 
 const About = () => {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-serif font-bold text-primary cursor-pointer" onClick={() => navigate("/")}>
-            Inner Map
-          </h1>
-          <nav className="flex items-center gap-6">
-            <Button variant="ghost" onClick={() => navigate("/")}>
-              Home
-            </Button>
-            <Button onClick={() => navigate("/start")}>
-              Start Reflecting
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <NavBar showContact={false} />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
