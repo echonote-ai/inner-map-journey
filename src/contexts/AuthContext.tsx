@@ -195,13 +195,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate("/goodbye");
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
   return (
     <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, subscribed, subscriptionDetails, checkSubscription }}>
-      {children}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen">Loading...</div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }
