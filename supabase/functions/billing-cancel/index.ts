@@ -61,18 +61,25 @@ serve(async (req) => {
     }
 
     const customerId = customers.data[0].id;
+    
+    // Look for active or trialing subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
-      limit: 1,
+      limit: 10,
     });
 
-    if (subscriptions.data.length === 0) {
-      throw new Error("No active subscription found");
+    // Filter for active or trialing subscriptions
+    const activeOrTrialing = subscriptions.data.filter(
+      sub => sub.status === "active" || sub.status === "trialing"
+    );
+
+    if (activeOrTrialing.length === 0) {
+      throw new Error("No active or trialing subscription found");
     }
 
-    const subscription = subscriptions.data[0];
-    
+    const subscription = activeOrTrialing[0];
+    logStep("Found subscription", { subscriptionId: subscription.id, status: subscription.status });
+
     let updatedSubscription;
     if (cancelAtPeriodEnd) {
       updatedSubscription = await stripe.subscriptions.update(subscription.id, {
