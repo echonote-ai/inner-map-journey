@@ -99,8 +99,13 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
   const [saving, setSaving] = useState(false);
 
   const handleSaveJournal = async () => {
+    // Check if user is authenticated first
     if (!user) {
-      navigate("/life-stage");
+      // Store pending data to complete save after signup
+      localStorage.setItem("pendingSaveSummary", summary);
+      const reflectionType = localStorage.getItem('pendingReflectionType') || 'daily';
+      localStorage.setItem("pendingSaveReflectionType", reflectionType);
+      navigate("/join");
       return;
     }
 
@@ -144,6 +149,8 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
       localStorage.removeItem('pendingReflectionType');
       localStorage.removeItem('viewReflection');
       localStorage.removeItem('viewReflectionId');
+      localStorage.removeItem('pendingSaveSummary');
+      localStorage.removeItem('pendingSaveReflectionType');
       
       navigate('/dashboard');
     } catch (err) {

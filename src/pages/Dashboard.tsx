@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ArrowLeft, Loader2, LogOut } from "lucide-react";
 import { UserInfoCard } from "@/components/dashboard/UserInfoCard";
 import { SubscriptionCard } from "@/components/dashboard/SubscriptionCard";
@@ -9,7 +10,7 @@ import { JournalsList } from "@/components/dashboard/JournalsList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, subscribed, checkSubscription, signOut } = useAuth();
+  const { user, subscribed, subscriptionDetails, checkSubscription, signOut } = useAuth();
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
@@ -29,18 +30,7 @@ const Dashboard = () => {
       navigate("/auth");
       return;
     }
-
-    // Don't redirect until we've checked subscription
-    if (checkingSubscription) {
-      return;
-    }
-
-    if (!subscribed) {
-      console.log('[Dashboard] Not subscribed, redirecting to subscription page');
-      navigate("/subscription");
-      return;
-    }
-  }, [user, subscribed, checkingSubscription, navigate]);
+  }, [user, navigate]);
 
   if (checkingSubscription) {
     return (
@@ -49,6 +39,9 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  // Check if user is entitled (paid or trial)
+  const isEntitled = subscribed || subscriptionDetails?.subscription_status === "trialing";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-accent/20 py-12 px-4">
@@ -89,8 +82,24 @@ const Dashboard = () => {
           <SubscriptionCard />
         </div>
 
-        {/* Journals List */}
-        <JournalsList />
+        {/* Journals List or Upgrade Prompt */}
+        {isEntitled ? (
+          <JournalsList />
+        ) : (
+          <Card className="p-8 text-center">
+            <div className="space-y-4">
+              <h3 className="text-xl font-serif font-semibold">
+                Upgrade to Save Your Journals
+              </h3>
+              <p className="text-muted-foreground">
+                Subscribe to a paid plan to save and access your journal entries.
+              </p>
+              <Button onClick={() => navigate("/subscription")}>
+                View Plans
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

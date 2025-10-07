@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,11 +12,36 @@ const Subscription = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { subscribed, checkSubscription } = useAuth();
+  const { subscribed, subscriptionDetails, checkSubscription } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
   
   const reflectionId = searchParams.get("id");
   const shouldSave = searchParams.get("save") === "true";
+
+  // Check if already subscribed and redirect to dashboard
+  useEffect(() => {
+    const checkExisting = async () => {
+      await checkSubscription();
+      setCheckingSubscription(false);
+      
+      if (subscribed || subscriptionDetails?.subscription_status === "trialing") {
+        navigate("/dashboard", { replace: true });
+      }
+    };
+    checkExisting();
+  }, []);
+
+  if (checkingSubscription) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking subscription status...</p>
+        </div>
+      </div>
+    );
+  }
 
   const tiers = [
     {
