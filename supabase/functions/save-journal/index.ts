@@ -160,40 +160,49 @@ serve(async (req) => {
     const auth_provider_id = `${iss}|${sub}`;
     logStep("User authenticated", { email, auth_provider_id });
 
-    // Reconcile with Stripe (central entitlement check inline)
+    // Stripe entitlement or free-tier fallback (3 saved journals max)
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: email!, limit: 1 });
-    if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
-      console.log("[METRIC] journal_save_redirect_to_subscription");
-      return new Response(JSON.stringify({ error: "not_entitled", reason: "no_customer" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 });
-    }
-
-    const customerId = customers.data[0].id;
-    const subs = await stripe.subscriptions.list({ customer: customerId, limit: 10 });
-    const active = subs.data.find((s: Stripe.Subscription) => s.status === "active");
-    const trialing = subs.data.find((s: Stripe.Subscription) => s.status === "trialing");
-    const chosen = active ?? trialing ?? subs.data.sort((a: Stripe.Subscription, b: Stripe.Subscription) => (b.created ?? 0) - (a.created ?? 0))[0];
-
-    if (!chosen) {
-      console.log("[METRIC] journal_save_redirect_to_subscription");
-      return new Response(JSON.stringify({ error: "not_entitled", reason: "no_subscription" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 });
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const trialEnd = chosen.trial_end ?? null;
-    const cancelAt = chosen.cancel_at ?? null;
-    const cancelAtPeriodEnd = (chosen as any).cancel_at_period_end === true;
 
     let entitled = false;
-    if (chosen.status === "active") entitled = true;
-    if (chosen.status === "trialing") {
-      if (trialEnd && trialEnd > now && !cancelAt && !cancelAtPeriodEnd) entitled = true;
+
+    if (customers.data.length > 0) {
+      const customerId = customers.data[0].id;
+      const subs = await stripe.subscriptions.list({ customer: customerId, limit: 10 });
+      const active = subs.data.find((s: Stripe.Subscription) => s.status === "active");
+      const trialing = subs.data.find((s: Stripe.Subscription) => s.status === "trialing");
+      const chosen = active ?? trialing ?? subs.data.sort((a: Stripe.Subscription, b: Stripe.Subscription) => (b.created ?? 0) - (a.created ?? 0))[0];
+
+      if (chosen) {
+        const now = Math.floor(Date.now() / 1000);
+        const trialEnd = chosen.trial_end ?? null;
+        const cancelAt = chosen.cancel_at ?? null;
+        const cancelAtPeriodEnd = (chosen as any).cancel_at_period_end === true;
+        if (chosen.status === "active") entitled = true;
+        if (chosen.status === "trialing" && trialEnd && trialEnd > now && !cancelAt && !cancelAtPeriodEnd) entitled = true;
+      }
     }
 
     if (!entitled) {
-      console.log("[METRIC] journal_save_redirect_to_subscription");
-      return new Response(JSON.stringify({ error: "not_entitled", reason: "subscription_status" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 });
+      // Free tier path: allow up to 3 saved journals per user
+      const { count, error: countError } = await supabase
+        .from('reflections')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('saved', true);
+
+      if (countError) {
+        logStep("Count error", { message: countError.message });
+        return new Response(JSON.stringify({ error: "count_error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 });
+      }
+
+      const journalCount = count || 0;
+      if (journalCount >= 3) {
+        logStep("Free tier limit reached", { journalCount });
+        return new Response(JSON.stringify({ error: "not_entitled", reason: "free_tier_limit_reached" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 });
+      }
+
+      logStep("Proceeding under free tier", { remaining: 3 - journalCount });
     }
 
     // Parse body

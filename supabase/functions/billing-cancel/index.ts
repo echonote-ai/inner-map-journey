@@ -70,7 +70,7 @@ serve(async (req) => {
 
     // Filter for active or trialing subscriptions
     const activeOrTrialing = subscriptions.data.filter(
-      sub => sub.status === "active" || sub.status === "trialing"
+      (sub: Stripe.Subscription) => sub.status === "active" || sub.status === "trialing"
     );
 
     if (activeOrTrialing.length === 0) {

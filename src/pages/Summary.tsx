@@ -111,11 +111,11 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
   const handleSaveJournal = async () => {
     // Check if user is authenticated first
     if (!user) {
-      // Store pending data to complete save after signup
-      localStorage.setItem("pendingSaveSummary", summary);
+      // Store pending data to complete save after signup/login
+      localStorage.setItem("pendingJournalSummary", summary);
       const reflectionType = localStorage.getItem('pendingReflectionType') || 'daily';
-      localStorage.setItem("pendingSaveReflectionType", reflectionType);
-      navigate("/join");
+      localStorage.setItem("pendingJournalType", reflectionType);
+      navigate("/auth");
       return;
     }
 
