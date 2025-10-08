@@ -152,12 +152,13 @@ serve(async (req) => {
       entitled = true;
       decisionReason = "granted_active";
     } else if (chosen.status === "trialing") {
-      if (trialEnd && trialEnd > now && !cancelAt && !cancelAtPeriodEnd) {
+      // Allow trialing subscriptions even if set to cancel at period end, as long as trial hasn't expired
+      if (trialEnd && trialEnd > now) {
         entitled = true;
-        decisionReason = "granted_trialing";
+        decisionReason = cancelAtPeriodEnd ? "granted_trialing_will_cancel" : "granted_trialing";
       } else {
         entitled = false;
-        decisionReason = trialEnd && trialEnd <= now ? "trial_expired" : "trial_not_valid";
+        decisionReason = "trial_expired";
       }
     }
 

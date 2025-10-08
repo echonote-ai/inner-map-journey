@@ -19,52 +19,53 @@ const Subscription = () => {
   const reflectionId = searchParams.get("id");
   const shouldSave = searchParams.get("save") === "true";
 
-  // Check subscription status after checkout and save pending journal
+  // Initial check on mount - redirect if already subscribed
   useEffect(() => {
-    const checkAndSave = async () => {
+    const initialCheck = async () => {
+      setCheckingSubscription(true);
       await checkSubscription();
+      setCheckingSubscription(false);
+    };
+    initialCheck();
+  }, []); // Run only once on mount
+
+  // Handle redirect and pending journal save when subscription becomes active
+  useEffect(() => {
+    if (checkingSubscription) return; // Wait for initial check
+    
+    if (subscribed || subscriptionDetails?.subscription_status === "trialing") {
+      const pendingJournalSummary = localStorage.getItem('pendingJournalSummary');
       
-      // If subscribed and there's a pending journal, save it
-      if ((subscribed || subscriptionDetails?.subscription_status === "trialing")) {
-        const pendingJournalSummary = localStorage.getItem('pendingJournalSummary');
+      if (pendingJournalSummary) {
+        // Save pending journal
         const pendingJournalType = localStorage.getItem('pendingJournalType');
         
-        if (pendingJournalSummary) {
-          try {
-            const { data, error } = await supabase.functions.invoke('save-journal', {
-              body: { 
-                summary: pendingJournalSummary, 
-                reflection_type: pendingJournalType || 'daily' 
-              },
+        supabase.functions.invoke('save-journal', {
+          body: { 
+            summary: pendingJournalSummary, 
+            reflection_type: pendingJournalType || 'daily' 
+          },
+        }).then(({ data, error }) => {
+          if (!error) {
+            toast({
+              title: "Welcome aboard!",
+              description: "Your journal has been saved to your account.",
             });
-
-            if (!error) {
-              toast({
-                title: "Welcome aboard!",
-                description: "Your journal has been saved to your account.",
-              });
-              
-              // Clean up
-              localStorage.removeItem('pendingJournalSummary');
-              localStorage.removeItem('pendingJournalType');
-              localStorage.removeItem('pendingReflectionMessages');
-              localStorage.removeItem('pendingReflectionType');
-              
-              navigate('/dashboard', { replace: true });
-            }
-          } catch (err) {
-            console.error('Error saving pending journal:', err);
+            
+            // Clean up
+            localStorage.removeItem('pendingJournalSummary');
+            localStorage.removeItem('pendingJournalType');
+            localStorage.removeItem('pendingReflectionMessages');
+            localStorage.removeItem('pendingReflectionType');
           }
-        }
+          navigate('/dashboard', { replace: true });
+        });
+      } else {
+        // No pending journal, just redirect
+        navigate('/dashboard', { replace: true });
       }
-    };
-    
-    // Check periodically for subscription updates
-    const interval = setInterval(checkAndSave, 3000);
-    checkAndSave();
-    
-    return () => clearInterval(interval);
-  }, [subscribed, subscriptionDetails]);
+    }
+  }, [subscribed, subscriptionDetails, checkingSubscription]);
 
   if (checkingSubscription) {
     return (
