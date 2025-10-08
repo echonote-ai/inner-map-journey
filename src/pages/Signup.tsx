@@ -133,9 +133,9 @@ export default function Signup() {
       description: "Account created successfully!",
     });
 
-    // Check if there's a pending reflection
-    const hasPendingReflection = localStorage.getItem('pendingReflectionMessages');
-    if (hasPendingReflection) {
+    // Check if there's a pending journal to save
+    const hasPendingJournal = localStorage.getItem('pendingJournalSummary');
+    if (hasPendingJournal) {
       navigate("/subscription");
     } else {
       navigate("/choice");

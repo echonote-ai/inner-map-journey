@@ -27,15 +27,64 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      // Check if there's a pending reflection
-      const hasPendingReflection = localStorage.getItem('pendingReflectionMessages');
-      if (hasPendingReflection) {
-        navigate("/subscription");
+      const hasPendingJournal = localStorage.getItem('pendingJournalSummary');
+      if (hasPendingJournal) {
+        // User just logged in with pending journal - handle saving
+        handlePendingJournalSave();
       } else {
         navigate("/choice");
       }
     }
   }, [user, navigate]);
+
+  const handlePendingJournalSave = async () => {
+    const pendingSummary = localStorage.getItem('pendingJournalSummary');
+    const pendingType = localStorage.getItem('pendingJournalType');
+    
+    if (!pendingSummary || !user) return;
+
+    try {
+      // Check entitlement
+      const { data: entitlement } = await supabase.functions.invoke('entitlement');
+
+      if (!entitlement?.entitled) {
+        // Not entitled - redirect to subscription
+        navigate("/subscription");
+        return;
+      }
+
+      // Save the journal
+      const { data, error } = await supabase.functions.invoke('save-journal', {
+        body: { 
+          summary: pendingSummary, 
+          reflection_type: pendingType || 'daily' 
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Journal Saved!",
+        description: "Your reflection has been saved to your account.",
+      });
+
+      // Clean up
+      localStorage.removeItem('pendingJournalSummary');
+      localStorage.removeItem('pendingJournalType');
+      localStorage.removeItem('pendingReflectionMessages');
+      localStorage.removeItem('pendingReflectionType');
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error saving pending journal:', err);
+      toast({
+        title: "Error",
+        description: "Could not save your journal. Please try again from the dashboard.",
+        variant: "destructive",
+      });
+      navigate('/dashboard');
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,13 +166,7 @@ export default function Auth() {
         title: "Success",
         description: "Signed in successfully!",
       });
-      // Check if there's a pending reflection
-      const hasPendingReflection = localStorage.getItem('pendingReflectionMessages');
-      if (hasPendingReflection) {
-        navigate("/subscription");
-      } else {
-        navigate("/choice");
-      }
+      // Pending journal will be handled by useEffect
     }
 
     setLoading(false);
@@ -134,9 +177,12 @@ export default function Auth() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Welcome</CardTitle>
+            <CardTitle className="text-2xl text-center">Save Your Reflection</CardTitle>
             <CardDescription className="text-center text-lg pt-2">
-              Would you like to tell me a little bit about yourself?
+              {localStorage.getItem('pendingJournalSummary') 
+                ? "Your journal is ready to be saved. Would you like to create an account or sign in?"
+                : "Would you like to tell me a little bit about yourself?"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

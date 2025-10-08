@@ -67,11 +67,58 @@ serve(async (req) => {
 
     // Look up customer by email (fallback strategy due to no local mapping)
     const customers = await stripe.customers.list({ email, limit: 1 });
+    
+    // If no Stripe customer, check free tier limit (3 journals max)
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
+      logStep("No Stripe customer found, checking free tier limit");
+      
+      // Import Supabase
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      
+      if (!supabaseUrl || !supabaseKey) {
+        return new Response(JSON.stringify({ error: "Supabase configuration missing" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
+      }
+      
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      // Count user's saved journals
+      const { count, error: countError } = await supabase
+        .from('reflections')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', sub)
+        .eq('saved', true);
+      
+      if (countError) {
+        logStep("Error counting journals", { error: countError });
+        return new Response(JSON.stringify({ error: "Failed to check journal count" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
+      }
+      
+      const journalCount = count || 0;
+      logStep("Free tier user", { journalCount, limit: 3 });
+      
+      // Free tier: allow up to 3 saved journals
+      if (journalCount < 3) {
+        return new Response(JSON.stringify({
+          entitled: true,
+          reason: "free_tier",
+          plan_name: "Free Spirit",
+          journals_remaining: 3 - journalCount,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      }
+      
       return new Response(JSON.stringify({
         entitled: false,
-        reason: "no_customer",
+        reason: "free_tier_limit_reached",
+        plan_name: "Free Spirit",
+        journals_remaining: 0,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 

@@ -80,6 +80,16 @@ Through this reflection, I'm recognizing patterns in how I respond to situations
 This moment of pause reminded me that self-awareness is an ongoing practice, and I'm grateful for this space to process and understand myself better.`;
 
         setSummary(generatedSummary);
+        
+        // Store as pending journal and redirect to auth if not logged in
+        if (!user) {
+          const reflectionType = localStorage.getItem('pendingReflectionType') || 'daily';
+          localStorage.setItem('pendingJournalSummary', generatedSummary);
+          localStorage.setItem('pendingJournalType', reflectionType);
+          setLoading(false);
+          navigate("/auth");
+          return;
+        }
       } catch (error) {
         console.error("Error loading reflection:", error);
         toast({
@@ -94,7 +104,7 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
     };
 
     loadReflection();
-  }, [navigate, toast]);
+  }, [navigate, toast, user]);
 
   const [saving, setSaving] = useState(false);
 
