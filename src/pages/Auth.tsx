@@ -29,62 +29,13 @@ export default function Auth() {
     if (user) {
       const hasPendingJournal = localStorage.getItem('pendingJournalSummary');
       if (hasPendingJournal) {
-        // User just logged in with pending journal - handle saving
-        handlePendingJournalSave();
+        // User just logged in with pending journal - redirect to subscription page to choose plan
+        navigate("/subscription");
       } else {
         navigate("/choice");
       }
     }
   }, [user, navigate]);
-
-  const handlePendingJournalSave = async () => {
-    const pendingSummary = localStorage.getItem('pendingJournalSummary');
-    const pendingType = localStorage.getItem('pendingJournalType');
-    
-    if (!pendingSummary || !user) return;
-
-    try {
-      // Check entitlement
-      const { data: entitlement } = await supabase.functions.invoke('entitlement');
-
-      if (!entitlement?.entitled) {
-        // Not entitled - redirect to subscription
-        navigate("/subscription");
-        return;
-      }
-
-      // Save the journal
-      const { data, error } = await supabase.functions.invoke('save-journal', {
-        body: { 
-          summary: pendingSummary, 
-          reflection_type: pendingType || 'daily' 
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Journal Saved!",
-        description: "Your reflection has been saved to your account.",
-      });
-
-      // Clean up
-      localStorage.removeItem('pendingJournalSummary');
-      localStorage.removeItem('pendingJournalType');
-      localStorage.removeItem('pendingReflectionMessages');
-      localStorage.removeItem('pendingReflectionType');
-
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Error saving pending journal:', err);
-      toast({
-        title: "Error",
-        description: "Could not save your journal. Please try again from the dashboard.",
-        variant: "destructive",
-      });
-      navigate('/dashboard');
-    }
-  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

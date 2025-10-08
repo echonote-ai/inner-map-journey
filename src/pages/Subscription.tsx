@@ -19,7 +19,7 @@ const Subscription = () => {
   const reflectionId = searchParams.get("id");
   const shouldSave = searchParams.get("save") === "true";
 
-  // Initial check on mount - redirect if already subscribed
+  // Initial check on mount only
   useEffect(() => {
     const initialCheck = async () => {
       setCheckingSubscription(true);
@@ -28,44 +28,6 @@ const Subscription = () => {
     };
     initialCheck();
   }, []); // Run only once on mount
-
-  // Handle redirect and pending journal save when subscription becomes active
-  useEffect(() => {
-    if (checkingSubscription) return; // Wait for initial check
-    
-    if (subscribed || subscriptionDetails?.subscription_status === "trialing") {
-      const pendingJournalSummary = localStorage.getItem('pendingJournalSummary');
-      
-      if (pendingJournalSummary) {
-        // Save pending journal
-        const pendingJournalType = localStorage.getItem('pendingJournalType');
-        
-        supabase.functions.invoke('save-journal', {
-          body: { 
-            summary: pendingJournalSummary, 
-            reflection_type: pendingJournalType || 'daily' 
-          },
-        }).then(({ data, error }) => {
-          if (!error) {
-            toast({
-              title: "Welcome aboard!",
-              description: "Your journal has been saved to your account.",
-            });
-            
-            // Clean up
-            localStorage.removeItem('pendingJournalSummary');
-            localStorage.removeItem('pendingJournalType');
-            localStorage.removeItem('pendingReflectionMessages');
-            localStorage.removeItem('pendingReflectionType');
-          }
-          navigate('/dashboard', { replace: true });
-        });
-      } else {
-        // No pending journal, just redirect
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [subscribed, subscriptionDetails, checkingSubscription]);
 
   if (checkingSubscription) {
     return (
@@ -145,47 +107,61 @@ const Subscription = () => {
     }
 
     if (!priceId) {
-      // Free tier - save pending journal if within limit
+      // Free tier - try to save pending journal if exists and within limit
       const pendingJournalSummary = localStorage.getItem('pendingJournalSummary');
       
       if (pendingJournalSummary) {
+        setLoading(true);
         try {
-          const { data: entitlementData } = await supabase.functions.invoke('entitlement');
-          
-          if (entitlementData?.entitled) {
-            // Save the journal
-            const pendingJournalType = localStorage.getItem('pendingJournalType');
-            const { data, error } = await supabase.functions.invoke('save-journal', {
-              body: { 
-                summary: pendingJournalSummary, 
-                reflection_type: pendingJournalType || 'daily' 
-              },
-            });
+          // Try to save - backend will check free tier limit
+          const pendingJournalType = localStorage.getItem('pendingJournalType');
+          const { data, error } = await supabase.functions.invoke('save-journal', {
+            body: { 
+              summary: pendingJournalSummary, 
+              reflection_type: pendingJournalType || 'daily' 
+            },
+          });
 
-            if (!error) {
+          if (error) {
+            // Check if it's a free tier limit error
+            if (error.message?.includes('not_entitled') || error.message?.includes('free_tier_limit')) {
               toast({
-                title: "Journal Saved!",
-                description: `Your journal has been saved. ${entitlementData.journals_remaining > 0 ? `You have ${entitlementData.journals_remaining} free saves remaining.` : ''}`,
+                title: "Free Limit Reached",
+                description: "You've used all 3 free journal saves. Upgrade to save unlimited journals!",
+                variant: "destructive",
               });
-              
-              // Clean up
-              localStorage.removeItem('pendingJournalSummary');
-              localStorage.removeItem('pendingJournalType');
-              localStorage.removeItem('pendingReflectionMessages');
-              localStorage.removeItem('pendingReflectionType');
-              
-              navigate('/dashboard');
+              setLoading(false);
               return;
             }
-          } else {
-            toast({
-              title: "Free Limit Reached",
-              description: "You've used all 3 free journal saves. Upgrade to save unlimited journals!",
-              variant: "destructive",
-            });
+            throw error;
           }
+
+          // Success - saved within free tier
+          const entitlementData = data;
+          const remaining = entitlementData?.journals_remaining ?? 0;
+          
+          toast({
+            title: "Journal Saved!",
+            description: remaining > 0 ? `You have ${remaining} free saves remaining.` : "This was your last free save. Upgrade for unlimited!",
+          });
+          
+          // Clean up
+          localStorage.removeItem('pendingJournalSummary');
+          localStorage.removeItem('pendingJournalType');
+          localStorage.removeItem('pendingReflectionMessages');
+          localStorage.removeItem('pendingReflectionType');
+          
+          navigate('/dashboard');
+          return;
         } catch (err) {
           console.error('Error saving free journal:', err);
+          toast({
+            title: "Error",
+            description: "Could not save your journal. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
         }
       }
       
