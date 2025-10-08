@@ -124,20 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
-  useEffect(() => {
-    // Check for pending save after auth change
-    if (user && session) {
-      const pendingSummary = localStorage.getItem("pendingSaveSummary");
-      const pendingType = localStorage.getItem("pendingSaveReflectionType");
-      
-      if (pendingSummary) {
-        // User just signed up/in and has pending journal save - redirect to subscription
-        setTimeout(() => {
-          window.location.href = "/subscription";
-        }, 500);
-      }
-    }
-  }, [user, session]);
+  // Removed auto-redirect based on legacy pending keys to avoid unwanted navigation loops
+  // Pending journal handling is managed within Auth and Subscription pages now.
+
 
   const signIn = async (emailOrUsername: string, password: string) => {
     let email = emailOrUsername.trim();
