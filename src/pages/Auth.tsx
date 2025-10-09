@@ -21,7 +21,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signUp, signIn, user } = useAuth();
+  const { signUp, signIn, user, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -120,17 +120,12 @@ export default function Auth() {
   };
 
   const handleGoogleSignIn = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/choice`
-      }
-    });
-
-    if (error) {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error?.message || "Google sign-in failed",
         variant: "destructive",
       });
     }
