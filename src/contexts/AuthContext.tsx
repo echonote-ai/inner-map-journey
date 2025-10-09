@@ -15,6 +15,7 @@ interface AuthContextType {
   session: Session | null;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   subscribed: boolean;
   subscriptionDetails: SubscriptionDetails | null;
@@ -162,6 +163,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const signInWithGoogle = async () => {
+    const redirectTo = `${window.location.origin}/`;
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      console.error("Google OAuth start failed:", error);
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut({ scope: "global" });
     setUser(null);
@@ -173,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, signUp, signIn, signOut, subscribed, subscriptionDetails, checkSubscription }}
+      value={{ user, session, signUp, signIn, signInWithGoogle, signOut, subscribed, subscriptionDetails, checkSubscription }}
     >
       {loading ? <div className="flex items-center justify-center min-h-screen">Loading...</div> : children}
     </AuthContext.Provider>
@@ -186,100 +202,4 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
-
-// 1) extend the context type
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signInWithGoogle: () => Promise<void>; // ← add
-  signOut: () => Promise<void>;
-  subscribed: boolean;
-  subscriptionDetails: SubscriptionDetails | null;
-  checkSubscription: () => Promise<void>;
-}
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // ...existing state...
-
-  // 2) Supabase Google OAuth (this must be the only Google flow you use)
-  const signInWithGoogle = async () => {
-    const redirectTo = `${window.location.origin}/auth/redirect`;
-    // ^ This path just needs to exist in your app (can be your home page, too).
-    // Supabase will do the code exchange server-side at:
-    // https://lzvycoujohuznnqplekx.supabase.co/auth/v1/callback
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        // scopes optional: Supabase already requests openid email profile
-        // queryParams optional:
-        // queryParams: { prompt: "consent", access_type: "offline" }
-      },
-    });
-
-    if (error) {
-      console.error("Google OAuth start failed:", error);
-    } else {
-      // Browser will redirect; no further code runs here.
-      console.log("Redirecting to Google:", data?.url);
-    }
-  };
-
-  // 3) After login, decide where to go based on subscription
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      if (!session) return;
-
-      await checkSubscription();
-
-      // Decide the next page after a successful login
-      setTimeout(() => {
-        if (subscribed === false) {
-          navigate("/subscribe");
-        } else {
-          navigate("/dashboard");
-        }
-      }, 0);
-    });
-
-    // initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      if (session) {
-        await checkSubscription();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [subscribed]); // note: subscribed in deps so redirect runs after check
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        signUp,
-        signIn,
-        signInWithGoogle, // ← expose it
-        signOut,
-        subscribed,
-        subscriptionDetails,
-        checkSubscription,
-      }}
-    >
-      {loading ? <div className="flex items-center justify-center min-h-screen">Loading...</div> : children}
-    </AuthContext.Provider>
-  );
 }
