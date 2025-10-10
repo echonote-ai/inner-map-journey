@@ -68,57 +68,53 @@ serve(async (req) => {
     // Look up customer by email (fallback strategy due to no local mapping)
     const customers = await stripe.customers.list({ email, limit: 1 });
     
+    // Import Supabase for journal count check
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return new Response(JSON.stringify({ error: "Supabase configuration missing" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Count user's saved journals (for free tier check and view access)
+    const { count, error: countError } = await supabase
+      .from('reflections')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', sub)
+      .eq('saved', true);
+    
+    if (countError) {
+      logStep("Error counting journals", { error: countError });
+      return new Response(JSON.stringify({ error: "Failed to check journal count" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+    
+    const journalCount = count || 0;
+    const hasExistingJournals = journalCount > 0;
+
     // If no Stripe customer, check free tier limit (3 journals max)
     if (customers.data.length === 0) {
-      logStep("No Stripe customer found, checking free tier limit");
-      
-      // Import Supabase
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      
-      if (!supabaseUrl || !supabaseKey) {
-        return new Response(JSON.stringify({ error: "Supabase configuration missing" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        });
-      }
-      
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      // Count user's saved journals
-      const { count, error: countError } = await supabase
-        .from('reflections')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', sub)
-        .eq('saved', true);
-      
-      if (countError) {
-        logStep("Error counting journals", { error: countError });
-        return new Response(JSON.stringify({ error: "Failed to check journal count" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 500,
-        });
-      }
-      
-      const journalCount = count || 0;
-      logStep("Free tier user", { journalCount, limit: 3 });
+      logStep("No Stripe customer found, checking free tier limit", { journalCount, limit: 3 });
       
       // Free tier: allow up to 3 saved journals
-      if (journalCount < 3) {
-        return new Response(JSON.stringify({
-          entitled: true,
-          reason: "free_tier",
-          plan_name: "Free Spirit",
-          journals_remaining: 3 - journalCount,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-      }
+      const canCreate = journalCount < 3;
       
       return new Response(JSON.stringify({
-        entitled: false,
-        reason: "free_tier_limit_reached",
+        entitled: canCreate,
+        can_create_journals: canCreate,
+        can_view_journals: true,
+        reason: canCreate ? "free_tier" : "free_tier_limit_reached",
         plan_name: "Free Spirit",
-        journals_remaining: 0,
+        journals_remaining: Math.max(0, 3 - journalCount),
+        total_journals: journalCount,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
@@ -134,8 +130,16 @@ serve(async (req) => {
     const chosen = active ?? trialing ?? subs.data.sort((a: Stripe.Subscription, b: Stripe.Subscription) => (b.created ?? 0) - (a.created ?? 0))[0];
 
     if (!chosen) {
-      logStep("No subscription found");
-      return new Response(JSON.stringify({ entitled: false, reason: "no_subscription" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      logStep("No subscription found, checking if user has existing journals");
+      // User has no subscription but may have old journals - allow viewing but not creating
+      return new Response(JSON.stringify({ 
+        entitled: false,
+        can_create_journals: false,
+        can_view_journals: true,
+        reason: "no_subscription",
+        plan_name: "Free Spirit",
+        total_journals: journalCount,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
     }
 
     // Compute entitlement
@@ -145,35 +149,52 @@ serve(async (req) => {
     const cancelAt = chosen.cancel_at ?? null;
     const cancelAtPeriodEnd = (chosen as any).cancel_at_period_end === true;
 
-    let entitled = false;
+    let canCreate = false;
     let decisionReason = "denied";
 
+    // Determine if user can create new journals based on subscription status
     if (chosen.status === "active") {
-      entitled = true;
+      canCreate = true;
       decisionReason = "granted_active";
     } else if (chosen.status === "trialing") {
       // Allow trialing subscriptions even if set to cancel at period end, as long as trial hasn't expired
       if (trialEnd && trialEnd > now) {
-        entitled = true;
+        canCreate = true;
         decisionReason = cancelAtPeriodEnd ? "granted_trialing_will_cancel" : "granted_trialing";
       } else {
-        entitled = false;
+        canCreate = false;
         decisionReason = "trial_expired";
       }
+    } else if (["canceled", "past_due", "unpaid", "incomplete_expired"].includes(chosen.status)) {
+      // Canceled or problematic subscriptions: can view but not create
+      canCreate = false;
+      decisionReason = `subscription_${chosen.status}`;
     }
 
     const priceId = chosen.items.data[0]?.price.id;
     const planName = priceId === "price_1SDds0Jaf5VF0aw32AdFJvNb" ? "Inner Explorer" : "Free Spirit";
 
-    logStep("Entitlement decision", { entitled, status: chosen.status, decisionReason, trialEnd, currentPeriodEnd, cancelAt, cancelAtPeriodEnd });
+    logStep("Entitlement decision", { 
+      canCreate, 
+      status: chosen.status, 
+      decisionReason, 
+      trialEnd, 
+      currentPeriodEnd, 
+      cancelAt, 
+      cancelAtPeriodEnd,
+      journalCount 
+    });
 
     return new Response(JSON.stringify({
-      entitled,
+      entitled: canCreate, // Backwards compatibility
+      can_create_journals: canCreate,
+      can_view_journals: true, // Always allow viewing existing journals
       status: chosen.status,
       decisionReason,
       trial_end: trialEnd ? new Date(trialEnd * 1000).toISOString() : null,
       current_period_end: currentPeriodEnd ? new Date(currentPeriodEnd * 1000).toISOString() : null,
       plan_name: planName,
+      total_journals: journalCount,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

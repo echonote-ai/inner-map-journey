@@ -176,10 +176,18 @@ serve(async (req) => {
       if (chosen) {
         const now = Math.floor(Date.now() / 1000);
         const trialEnd = chosen.trial_end ?? null;
-        const cancelAt = chosen.cancel_at ?? null;
-        const cancelAtPeriodEnd = (chosen as any).cancel_at_period_end === true;
-        if (chosen.status === "active") entitled = true;
-        if (chosen.status === "trialing" && trialEnd && trialEnd > now && !cancelAt && !cancelAtPeriodEnd) entitled = true;
+        
+        // Only allow journal creation for active subscriptions or valid trials
+        if (chosen.status === "active") {
+          entitled = true;
+        } else if (chosen.status === "trialing") {
+          // Allow trialing subscriptions only if trial hasn't expired
+          if (trialEnd && trialEnd > now) {
+            entitled = true;
+          }
+        }
+        // Explicitly deny canceled, past_due, unpaid, etc.
+        // These users can view existing journals but not create new ones
       }
     }
 

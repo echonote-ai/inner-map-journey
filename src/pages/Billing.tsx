@@ -275,6 +275,26 @@ const Billing = () => {
           <p className="text-muted-foreground">Manage your subscription and billing information</p>
         </div>
 
+        {/* Alert for canceled subscriptions */}
+        {billingStatus?.subscription?.status === "canceled" && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your subscription has been canceled. You can still view all your saved journals, but you'll need to reactivate your subscription to create new ones.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Alert for past due subscriptions */}
+        {(billingStatus?.subscription?.status === "past_due" || billingStatus?.subscription?.status === "unpaid") && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your subscription payment is past due. Please update your payment method to continue creating new journals.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Subscription Status */}
         <Card>
           <CardHeader>
@@ -355,7 +375,11 @@ const Billing = () => {
                     Manage Billing
                   </Button>
                   
-                  {billingStatus.subscription.cancelAtPeriodEnd ? (
+                  {billingStatus.subscription.status === "canceled" ? (
+                    <Button onClick={() => navigate("/subscription")} variant="default">
+                      Reactivate Subscription
+                    </Button>
+                  ) : billingStatus.subscription.cancelAtPeriodEnd ? (
                     <Button onClick={handleReactivateSubscription} disabled={reactivating} variant="outline">
                       {reactivating ? (
                         <RefreshCw className="h-4 w-4 animate-spin mr-2" />
@@ -381,21 +405,27 @@ const Billing = () => {
           </CardContent>
         </Card>
 
-        {/* Upgrade CTA (only show if not subscribed or on trial) */}
-        {(!billingStatus?.subscribed || billingStatus?.subscription?.status === "trialing") && (
+        {/* Upgrade CTA (only show if not subscribed, on trial, or canceled) */}
+        {(!billingStatus?.subscribed || 
+          billingStatus?.subscription?.status === "trialing" ||
+          billingStatus?.subscription?.status === "canceled") && (
           <Card className="border-primary/50 bg-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                Unlock Premium Features
+                {billingStatus?.subscription?.status === "canceled" 
+                  ? "Reactivate Your Subscription"
+                  : "Unlock Premium Features"}
               </CardTitle>
               <CardDescription>
-                Get unlimited journals, advanced insights, and priority support
+                {billingStatus?.subscription?.status === "canceled"
+                  ? "Resume your subscription to continue creating new journals"
+                  : "Get unlimited journals, advanced insights, and priority support"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={() => navigate("/subscription")} className="gap-2">
-                View Plans
+                {billingStatus?.subscription?.status === "canceled" ? "View Plans" : "View Plans"}
                 <ExternalLink className="h-4 w-4" />
               </Button>
             </CardContent>

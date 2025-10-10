@@ -10,12 +10,26 @@ export function SubscriptionCard() {
   const navigate = useNavigate();
 
   const getStatusBadge = () => {
+    const status = subscriptionDetails?.subscription_status;
+    
     if (!subscriptionDetails?.subscribed) {
       return <Badge variant="secondary">Free</Badge>;
     }
     
-    if (subscriptionDetails.subscription_status === "trialing") {
+    if (status === "trialing") {
       return <Badge className="bg-primary/20 text-primary">Trial</Badge>;
+    }
+    
+    if (status === "active") {
+      return <Badge className="bg-primary">Active</Badge>;
+    }
+    
+    if (status === "canceled") {
+      return <Badge variant="destructive">Canceled</Badge>;
+    }
+    
+    if (status === "past_due" || status === "unpaid") {
+      return <Badge variant="destructive">Past Due</Badge>;
     }
     
     return <Badge className="bg-primary">Active</Badge>;
@@ -61,20 +75,29 @@ export function SubscriptionCard() {
               <span>
                 {subscriptionDetails.subscription_status === "trialing" 
                   ? `Trial ends ${formatDate(subscriptionDetails.subscription_end)}`
+                  : subscriptionDetails.subscription_status === "canceled"
+                  ? `Access ends ${formatDate(subscriptionDetails.subscription_end)}`
                   : `Renews ${formatDate(subscriptionDetails.subscription_end)}`
                 }
               </span>
             </div>
           )}
 
+          {!subscriptionDetails?.can_create_journals && subscriptionDetails?.total_journals && subscriptionDetails.total_journals > 0 && (
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+              <p>You can view your {subscriptionDetails.total_journals} saved journal{subscriptionDetails.total_journals !== 1 ? 's' : ''}, but need an active subscription to create new ones.</p>
+            </div>
+          )}
+
           <div className="flex gap-2">
-            {subscriptionDetails?.subscribed ? (
+            {subscriptionDetails?.subscribed || subscriptionDetails?.subscription_status === "canceled" || subscriptionDetails?.subscription_status === "past_due" ? (
               <Button 
                 onClick={() => navigate("/billing")}
                 className="gap-2"
+                variant={subscriptionDetails.subscription_status === "canceled" ? "default" : "default"}
               >
                 <Settings className="w-4 h-4" />
-                Manage Billing
+                {subscriptionDetails.subscription_status === "canceled" ? "Reactivate Subscription" : "Manage Billing"}
               </Button>
             ) : (
               <Button 

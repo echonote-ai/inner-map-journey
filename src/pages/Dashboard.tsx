@@ -10,7 +10,7 @@ import { JournalsList } from "@/components/dashboard/JournalsList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, subscribed, subscriptionDetails, checkSubscription, signOut } = useAuth();
+  const { user, subscribed, subscriptionDetails, checkSubscription, signOut, canCreateJournals, canViewJournals } = useAuth();
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
@@ -39,9 +39,6 @@ const Dashboard = () => {
       </div>
     );
   }
-
-  // Check if user is entitled (paid or trial)
-  const isEntitled = subscribed || subscriptionDetails?.subscription_status === "trialing";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-accent/20 py-12 px-4">
@@ -82,24 +79,24 @@ const Dashboard = () => {
           <SubscriptionCard />
         </div>
 
-        {/* Journals List or Upgrade Prompt */}
-        {isEntitled ? (
-          <JournalsList />
-        ) : (
-          <Card className="p-8 text-center">
-            <div className="space-y-4">
-              <h3 className="text-xl font-serif font-semibold">
-                Upgrade to Save Your Journals
+        {/* Journals List with Creation Status */}
+        {!canCreateJournals && canViewJournals && (
+          <Card className="p-6 bg-muted/50">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-foreground">
+                Subscription Required for New Journals
               </h3>
-              <p className="text-muted-foreground">
-                Subscribe to a paid plan to save and access your journal entries.
+              <p className="text-sm text-muted-foreground">
+                You can still view all your saved journals, but you need an active subscription to create new ones.
               </p>
-              <Button onClick={() => navigate("/subscription")}>
-                View Plans
+              <Button onClick={() => navigate("/subscription")} size="sm" className="mt-2">
+                Reactivate Subscription
               </Button>
             </div>
           </Card>
         )}
+        
+        <JournalsList />
       </div>
     </div>
   );

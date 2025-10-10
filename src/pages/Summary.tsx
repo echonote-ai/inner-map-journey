@@ -124,11 +124,15 @@ This moment of pause reminded me that self-awareness is an ongoing practice, and
       // 1) Check entitlement
       const { data: entitlement } = await (await import("@/integrations/supabase/client")).supabase.functions.invoke('entitlement');
 
-      if (!entitlement?.entitled) {
-        // metric tracked in backend, show toast and redirect
+      if (!entitlement?.can_create_journals) {
+        // Show appropriate message based on user status
+        const message = entitlement?.total_journals > 0 
+          ? "Reactivate your subscription to create new journals."
+          : "Upgrade to save your journal and access it later.";
+        
         toast({
           title: "Subscription Required",
-          description: "Upgrade to save your journal and access it later.",
+          description: message,
           variant: "destructive",
         });
         navigate(`/subscription?save=true`);

@@ -8,6 +8,9 @@ interface SubscriptionDetails {
   subscription_end: string | null;
   subscription_status: string | null;
   plan_name: string;
+  can_create_journals?: boolean;
+  can_view_journals?: boolean;
+  total_journals?: number;
 }
 
 interface AuthContextType {
@@ -20,6 +23,8 @@ interface AuthContextType {
   subscribed: boolean;
   subscriptionDetails: SubscriptionDetails | null;
   checkSubscription: () => Promise<void>;
+  canCreateJournals: boolean;
+  canViewJournals: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
+  const [canCreateJournals, setCanCreateJournals] = useState(false);
+  const [canViewJournals, setCanViewJournals] = useState(true);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -60,6 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Subscription check result:", data);
       setSubscribed(data?.subscribed || false);
       setSubscriptionDetails(data || null);
+      setCanCreateJournals(data?.can_create_journals ?? data?.subscribed ?? false);
+      setCanViewJournals(data?.can_view_journals ?? true);
     } catch (error) {
       console.error("Error checking subscription:", error);
       setSubscribed(false);
@@ -189,7 +198,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, signUp, signIn, signInWithGoogle, signOut, subscribed, subscriptionDetails, checkSubscription }}
+      value={{ 
+        user, 
+        session, 
+        signUp, 
+        signIn, 
+        signInWithGoogle, 
+        signOut, 
+        subscribed, 
+        subscriptionDetails, 
+        checkSubscription,
+        canCreateJournals,
+        canViewJournals
+      }}
     >
       {loading ? <div className="flex items-center justify-center min-h-screen">Loading...</div> : children}
     </AuthContext.Provider>
