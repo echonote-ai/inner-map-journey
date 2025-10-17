@@ -21,14 +21,10 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } }
-  ); // kept for potential future use, not required for auth here
+  );
 
   try {
     logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -37,7 +33,7 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
 
-    // Decode JWT locally (avoids occasional "session missing" from auth.getUser)
+    // Decode JWT locally
     const decodeJwt = (t: string) => {
       const base64Url = t.split(".")[1];
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -46,81 +42,55 @@ serve(async (req) => {
       return JSON.parse(jsonPayload);
     };
 
-    let email: string | null = null;
     let userId: string | null = null;
 
     try {
       const payload = decodeJwt(token);
-      email = payload?.email ?? null;
       userId = payload?.sub ?? null;
     } catch (_) {
-      // Fallback to GoTrue if needed
+      throw new Error("Could not decode user ID from token");
     }
 
-    if (!email) {
-      throw new Error("Could not decode user email from token");
+    if (!userId) throw new Error("User not authenticated");
+    logStep("User authenticated", { userId });
+
+    // Read subscription from database
+    const { data: subscription, error: subError } = await supabaseClient
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (subError && subError.code !== "PGRST116") {
+      logStep("Error fetching subscription", { error: subError });
+      throw subError;
     }
 
-    if (!email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId, email });
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: email!, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      logStep("No customer found, returning unsubscribed state");
-      return new Response(JSON.stringify({ subscribed: false }), {
+    if (!subscription) {
+      logStep("No subscription found, returning unsubscribed state");
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        plan_name: "Free Spirit"
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
-
-    // Check for both active and trialing subscriptions
-    const allSubscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      limit: 10,
+    const hasActiveSub = subscription.status === "active" || subscription.status === "trialing";
+    
+    logStep("Subscription found", {
+      tier: subscription.tier,
+      status: subscription.status,
+      hasActiveSub,
     });
-    
-    const activeOrTrialingSub = allSubscriptions.data.find(
-      (sub: Stripe.Subscription) => sub.status === "active" || sub.status === "trialing"
-    );
-    
-    const hasActiveSub = !!activeOrTrialingSub;
-    let subscriptionEnd = null;
-    let subscriptionStatus = null;
-    let planName = "Free Spirit";
-
-    if (hasActiveSub && activeOrTrialingSub) {
-      const endUnix = (activeOrTrialingSub as any).current_period_end;
-      if (typeof endUnix === "number" && !Number.isNaN(endUnix)) {
-        subscriptionEnd = new Date(endUnix * 1000).toISOString();
-      }
-      subscriptionStatus = activeOrTrialingSub.status;
-      
-      // Determine plan name from price ID
-      const priceId = activeOrTrialingSub.items.data[0]?.price.id;
-      if (priceId === "price_1SDds0Jaf5VF0aw32AdFJvNb") {
-        planName = "Inner Explorer";
-      }
-      
-      logStep("Active/Trialing subscription found", {
-        subscriptionId: activeOrTrialingSub.id,
-        status: activeOrTrialingSub.status,
-        endDate: subscriptionEnd,
-        planName,
-      });
-    } else {
-      logStep("No active or trialing subscription found");
-    }
 
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
-      subscription_end: subscriptionEnd,
-      subscription_status: subscriptionStatus,
-      plan_name: planName,
+      subscription_end: subscription.current_period_end,
+      subscription_status: subscription.status,
+      plan_name: subscription.tier,
+      cancel_at_period_end: subscription.cancel_at_period_end,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

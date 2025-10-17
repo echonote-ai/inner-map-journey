@@ -135,6 +135,48 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean | null
+          created_at: string | null
+          current_period_end: string | null
+          id: string
+          price_id: string | null
+          product_id: string | null
+          status: string
+          subscription_id: string | null
+          tier: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status: string
+          subscription_id?: string | null
+          tier?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean | null
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: string
+          price_id?: string | null
+          product_id?: string | null
+          status?: string
+          subscription_id?: string | null
+          tier?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
