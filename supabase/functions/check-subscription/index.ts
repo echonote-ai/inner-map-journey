@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -48,22 +47,22 @@ serve(async (req) => {
       const payload = decodeJwt(token);
       userId = payload?.sub ?? null;
     } catch (_) {
-      throw new Error("Could not decode user ID from token");
+      throw new Error("Could not decode user from token");
     }
 
     if (!userId) throw new Error("User not authenticated");
     logStep("User authenticated", { userId });
 
-    // Read subscription from database
-    const { data: subscription, error: subError } = await supabaseClient
+    // Query subscriptions table
+    const { data: subscription, error } = await supabaseClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
-    if (subError && subError.code !== "PGRST116") {
-      logStep("Error fetching subscription", { error: subError });
-      throw subError;
+    if (error) {
+      logStep("Error querying subscriptions", { error });
+      throw error;
     }
 
     if (!subscription) {
@@ -77,20 +76,18 @@ serve(async (req) => {
       });
     }
 
-    const hasActiveSub = subscription.status === "active" || subscription.status === "trialing";
-    
-    logStep("Subscription found", {
-      tier: subscription.tier,
-      status: subscription.status,
-      hasActiveSub,
+    logStep("Subscription found", { 
+      tier: subscription.tier, 
+      status: subscription.status 
     });
 
+    const isActive = subscription.status === "active" || subscription.status === "trialing";
+    
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
+      subscribed: isActive,
       subscription_end: subscription.current_period_end,
       subscription_status: subscription.status,
       plan_name: subscription.tier,
-      cancel_at_period_end: subscription.cancel_at_period_end,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
