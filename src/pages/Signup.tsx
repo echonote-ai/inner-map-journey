@@ -128,10 +128,10 @@ export default function Signup() {
       description: "Account created successfully!",
     });
 
-    // Check if there's a pending journal to save
+    // Check if there's a pending journal to show summary
     const hasPendingJournal = localStorage.getItem('pendingJournalSummary');
     if (hasPendingJournal) {
-      navigate("/subscription");
+      navigate("/summary");
     } else {
       navigate("/choice");
     }
