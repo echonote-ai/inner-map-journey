@@ -35,7 +35,7 @@ export const NavBar = ({ showAbout = true, showPricing = true, showContact = tru
           className="text-2xl font-serif font-bold text-primary cursor-pointer" 
           onClick={() => navigate('/')}
         >
-          Inner Map
+          Inner Map™
         </h2>
         
         <nav className="flex items-center gap-6">
