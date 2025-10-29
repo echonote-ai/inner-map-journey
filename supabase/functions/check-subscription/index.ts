@@ -78,16 +78,20 @@ serve(async (req) => {
 
     logStep("Subscription found", { 
       tier: subscription.tier, 
-      status: subscription.status 
+      status: subscription.status,
+      cancel_at_period_end: subscription.cancel_at_period_end
     });
 
-    const isActive = subscription.status === "active" || subscription.status === "trialing";
+    // Consider subscription cancelled if cancel_at_period_end is true
+    const isActive = (subscription.status === "active" || subscription.status === "trialing") 
+                     && !subscription.cancel_at_period_end;
     
     return new Response(JSON.stringify({
       subscribed: isActive,
       subscription_end: subscription.current_period_end,
       subscription_status: subscription.status,
       plan_name: subscription.tier,
+      cancel_at_period_end: subscription.cancel_at_period_end || false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
